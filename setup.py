@@ -231,7 +231,7 @@ extensions.append(mpc_osqp_ext)
 print(find_packages('.'))
 
 setup(
-    name='Simplex-Quadruped',
+    name='Simplex-Quadruped-A1',
     version='0.0.1',
     description=
     'Convex MPC controller with python bindings for MPC using the osqp solver',
@@ -244,7 +244,7 @@ setup(
     keywords=['robotics', 'control', 'physics simulation', 'deep reinforcement learning'],
     install_requires=[
         'numpy',
-        #   'pybullet',
+        'pybullet',
     ],
     ext_modules=extensions,
     classifiers=[
