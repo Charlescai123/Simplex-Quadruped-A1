@@ -1,0 +1,30 @@
+# @package _global_
+
+logger:
+  mode: ${general.mode}
+  model_name: ${general.id}
+  plot_dir: 'results/plots'
+  log_dir: 'results/logs/${logger.mode}/${general.id}'
+  model_save_dir: 'results/models/${general.id}'
+  force_override: false
+
+  fig_plotter:
+    phase:
+      plot: false
+      save_dir: "${logger.plot_dir}/phases/${logger.mode}/${general.id}"
+    trajectory:
+      plot: false
+      save_dir: "${logger.plot_dir}/trajectories/${logger.mode}/${general.id}"
+
+  live_plotter:
+    animation:
+      show: false
+      save_to_gif: false
+      gif_path: 'animation.gif'
+      fps: 10
+    live_trajectory:
+      show: false
+      save_to_gif: false
+      gif_path: 'live_trajectory.gif'
+      fps: 10
+      window_size: 30

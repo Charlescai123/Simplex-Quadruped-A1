@@ -76,7 +76,7 @@ repos:
     name: Disallow improper capitalization
     language: pygrep
     entry: PyBind|Numpy|Cmake
-    exclude: .pre-commit-config.yaml
+    exclude: .pre-commit-config_json.yaml
 
 - repo: local
   hooks:

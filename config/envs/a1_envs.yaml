@@ -1,0 +1,55 @@
+# @package envs
+defaults:
+  - simulator: sim_v2.yaml
+  - robot: a1_sim.yaml
+  - _self_
+
+simulator:
+  plane_urdf_path: 'src/envs/simulator/meshes/plane.urdf'
+
+  add_terrain: false
+  add_lane: true
+
+  random_reset:
+    train: true
+    evaluation: true
+    # distribution: "uniform"       # Uniform, Gaussian, Poisson
+    friction: [ 0.4, 0.4 ]
+    velocity: [ 0, 0.9 ]
+
+  record_video: false
+
+# A1 Envs Config
+robot:
+  # Input for the robot
+  command:
+
+    # Desired speed/twisting speed
+    desired_vx: 0.3
+    desired_vy: 0.0
+    desired_wz: 0.0
+
+    # Safe height
+    safe_height: 0.12
+
+    # MPC parameters
+    mpc_body_height: 0.24
+    # mpc_body_mass = 110 / 9.8
+    #    mpc_body_mass: 11.02041     # 108 / 9.8
+    mpc_body_mass: 11.22449     # 110 / 9.8
+    #    mpc_body_mass: 11.5     # 110 / 9.8
+    #    mpc_body_mass: 12.5     # 110 / 9.8
+    #    mpc_body_mass: 13.74
+
+    #    mpc_body_inertia: [ 0.255, 0., 0., 0., 0.855, 0., 0., 0., 0.96 ]  # *15
+    #    mpc_body_inertia: [ 0.204, 0., 0., 0., 0.684, 0., 0., 0., 0.768 ]  # *12
+    #    mpc_body_inertia: [ 0.17, 0., 0., 0., 0.57, 0., 0., 0., 0.64 ]  # *10
+    mpc_body_inertia: [ 0.135, 0., 0., 0., 0.285, 0., 0., 0., 0.32 ]  # from fast_and_efficient
+  #    mpc_body_inertia: [ 0.068, 0., 0., 0., 0.228, 0., 0., 0., 0.256 ]  # from robot-simulation
+
+  # Constant
+  constant:
+    pose:
+      standing: &standing_pose [ 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8 ]
+      laying: &laying_pose [ -0.275, 1.09, -2.7, 0.319, 1.08, -2.72, -0.3, 1.0584, -2.675, 0.283, 1.083, -2.685 ]
+

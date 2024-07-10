@@ -1,0 +1,8 @@
+# @package envs.robot
+
+swing_controller:
+  foot_lift_height: 0.1
+  foot_landing_clearance: 0.01
+  raibert_kp: [ 0.03, 0.03, 0.03 ]
+  foot_placement_interval: [ 0.15, 0.1, 0.05 ]
+  use_raibert_heuristic: true

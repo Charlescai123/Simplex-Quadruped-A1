@@ -1,0 +1,45 @@
+general:
+  id: 'SeC-LearningMachine'
+  mode: 'train'
+  checkpoint: null
+  use_gpu: true
+  gpu_id: 0
+  name: 'simulation'
+  runtime: 10            # Time for running the robot (seconds)
+  deploy_phydrl: false   # Whether to use Phy-DRL for inference
+  log_dir: 'saved/logs/robot'
+
+  # Training
+  training_by_steps: true         # Terminate training by maximum steps or episodes
+  max_training_steps: 1e6         # (1e6 by default)
+  max_training_episodes: 1e3      # (1e3 by default)
+  max_steps_per_episode: 10000     # (1500 by default)
+
+  # Evaluation
+  evaluation_period: 20           # (20 by default)
+  max_evaluation_steps: 1500      # (same to max_steps_per_episode by default)
+
+  # Logging
+  logging:
+    mode: null    # null or other (DEBUG/INFO/WARNING...)
+    folder: 'results/logs/debug'
+
+
+defaults:
+  - coordinator: coordinator.yaml
+  - envs: a1_envs.yaml
+  - ha_teacher: ha_teacher.yaml
+  - hp_student: phydrl.yaml
+  - logger: logger.yaml
+  - _self_
+
+hydra:
+  run:
+    dir: "results/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}"
+  sweep:
+    dir: "results/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}"
+    subdir: "${hydra.job.num}_${hydra.job.id}"
+#  hydra_logging:
+#    root:
+#      # Set resolve to True to enable variable interpolation
+#      resolve: true

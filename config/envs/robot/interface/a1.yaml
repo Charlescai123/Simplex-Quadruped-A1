@@ -1,0 +1,40 @@
+# @package envs.robot.interface
+# Interface for A1 simulator robot
+
+# Robot model settings
+model: 'a1'
+urdf_path: ${envs.simulator.robot_urdf_path}
+base_joint_names: [ ]
+#foot_joint_names:
+#  - "FR_toe_fixed"
+#  - "FL_toe_fixed"
+#  - "RR_toe_fixed"
+#  - "RL_toe_fixed"
+
+foot_joint_names:
+  - "FR_foot_fixed"
+  - "FL_foot_fixed"
+  - "RR_foot_fixed"
+  - "RL_foot_fixed"
+
+# Simulation settings
+time_step: 0.002
+action_repeat: 1
+reset_time: 3
+on_rack: false
+init_rack_position: [ 0, 0, 1 ]
+init_position: [ 0, 0, 0.26 ]
+sync_gui_time: 0.00      # Sync simulator and real-world action in GUI
+camera_fixed: false
+
+# Motor settings
+motor_control_mode: ${envs.robot.constant.motor_control_mode.hybrid}    # hybrid/position/velocity (0, 1, 2)
+motor_init_position: ${envs.robot.constant.pose.laying}
+motor_init_target_position: ${envs.robot.constant.pose.standing}
+
+# Swing settings
+#swing_reference_positions:
+#  - [ 0.17, -0.135, 0 ]
+#  - [ 0.17, 0.13, 0 ]
+#  - [ -0.195, -0.135, 0 ]
+#  - [ -0.195, 0.13, 0 ]

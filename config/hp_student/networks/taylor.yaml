@@ -1,0 +1,8 @@
+# @package hp_student
+
+taylor:
+  dense_dims: [ 10, 10 ]           # dim for hidden layers, not including input dim and output dim
+  aug_order: [ 1, 1, 0 ]           # augmentation order for all hidden layers. 2 will lead to 3rd order
+  initializer_w: 'tn'
+  initializer_b: 'uniform'         # activations for hidden layers, not including output
+  activations: [ 'relu', 'relu' ]  # activations for hidden layers, not including output

@@ -1,0 +1,33 @@
+# @package envs.robot.interface
+
+# A1 real robot model
+
+defaults:
+  - a1.yaml
+  - _self_
+
+# Override some parameters
+
+#a1_model:
+# Sim-to-real settings
+model: 'a1_robot'
+time_step: 0.002
+action_repeat: 1
+reset_time: 3         # 3 seconds for resetting
+sync_gui_time: 0.00      # Sync simulator and real-world action in GUI
+
+# Motor settings
+motor_control_mode: ${envs.robot.constant.motor_control_mode.hybrid}    # hybrid/position/velocity (0, 1, 2)
+motor_init_position: ${envs.robot.constant.pose.laying}
+motor_init_target_position: ${envs.robot.constant.pose.standing}
+
+# Constants for analytical FK/IK
+# hip_offset = [[0.183, -0.047, 0.], [0.183, 0.047, 0.], [-0.183, -0.047, 0.], [-0.183, 0.047, 0.]]) + com_offset
+com_offset: [ -0.012731, -0.002186, -0.000515 ]
+hip_offset:
+  - [ 0.170269, -0.049186, -0.000515 ]
+  - [ 0.170269,  0.044814, -0.000515 ]
+  - [ -0.195731, -0.049186, -0.000515 ]
+  - [ -0.195731,  0.044814, -0.000515 ]
+
+

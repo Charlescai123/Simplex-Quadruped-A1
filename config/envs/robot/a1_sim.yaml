@@ -1,0 +1,13 @@
+# @package envs.robot
+
+defaults:
+  - _self_
+  - gait_scheduler: walk.yaml
+  - interface: a1.yaml
+  - motors: motors.yaml
+  - mpc_controller/stance_leg: stance_control_quadprog.yaml
+  - mpc_controller/swing_leg: swing_control.yaml
+  - state_estimator: a1_velocity_estimator.yaml
+
+
+

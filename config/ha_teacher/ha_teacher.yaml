@@ -1,0 +1,8 @@
+# @package _global_
+
+ha_teacher:
+  chi: 0.25
+#  chi: 0.
+  epsilon: 0.4
+  teacher_enable: true
+  cvxpy_solver: 'cvxopt'

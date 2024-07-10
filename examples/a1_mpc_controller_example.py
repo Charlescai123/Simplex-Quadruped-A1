@@ -19,23 +19,24 @@ from absl import logging
 
 import pybullet
 from pybullet_utils import bullet_client
-from locomotion import wbc_controller
-from locomotion.wbc_controller import ControllerMode
-from locomotion.wbc_controller import GaitType
-from envs.worlds import plane_world, slope_world, stair_world, uneven_world
-from locomotion.robots import a1, a1_robot
-from locomotion.ha_teacher.mat_engine import MatEngine
-from config.locomotion.controllers.swing_params import SwingControllerParams
-from config.locomotion.controllers.stance_params import StanceControllerParams
-from config.locomotion.robots.motor_params import MotorGroupParams
-from config.locomotion.robots.a1_params import A1Params
-from config.a1_real_params import A1RealParams
-from config.locomotion.robots.a1_robot_params import A1RobotParams
-from config.phydrl.ddpg_params import DDPGParams
-from config.phydrl.taylor_params import TaylorParams
-from config.a1_sim_params import A1SimParams
-from locomotion.ha_teacher import ha_teacher
-from agents.phydrl.policies import ddpg
+from src.envs.locomotion import locomotion_controller
+from src.envs.locomotion.locomotion_controller import ControllerMode
+from src.envs.locomotion.locomotion_controller import GaitType
+from src.envs.simulator.worlds import uneven_world
+from src.envs.simulator.worlds import slope_world, plane_world, stair_world
+from src.envs.locomotion.robots import a1, a1_robot
+from src.envs.locomotion import MatEngine
+from config_json.locomotion.controllers.swing_params import SwingControllerParams
+from config_json.locomotion.controllers.stance_params import StanceControllerParams
+from config_json.locomotion.robots.motor_params import MotorGroupParams
+from config_json.locomotion.robots.a1_params import A1Params
+from config_json.a1_real_params import A1RealParams
+from config_json.locomotion.robots.a1_robot_params import A1RobotParams
+from config_json.phydrl.ddpg_params import DDPGParams
+from config_json.phydrl.taylor_params import TaylorParams
+from config_json.a1_sim_params import A1SimParams
+from src.ha_teacher import ha_teacher
+from src.hp_student.agents import ddpg
 
 flags.DEFINE_string("logdir", "logs", "where to log trajectories.")
 flags.DEFINE_bool("use_real_robot", False,
@@ -73,10 +74,10 @@ def main(argv):
     # print(f"pp is: {pp}")
     # import time
     # time.sleep(123)
-    p.setAdditionalSearchPath('envs/sim_envs_v2')
-    # p.setAdditionalSearchPath('envs/sim_envs_unitree_ros')
-    # quadruped = p.loadURDF('envs/sim_envs_unitree_ros/urdf/a1.urdf')
-    # quadruped = p.loadURDF('envs/sim_envs_unitree_bullet/laikago/urdf/laikago.urdf')
+    p.setAdditionalSearchPath('simulator/sim_envs_v2')
+    # p.setAdditionalSearchPath('simulator/sim_envs_unitree_ros')
+    # quadruped = p.loadURDF('simulator/sim_envs_unitree_ros/urdf/a1.urdf')
+    # quadruped = p.loadURDF('simulator/sim_envs_unitree_bullet/laikago/urdf/laikago.urdf')
     # quadruped = p.loadURDF('urdf/plane.urdf')
     # import time
     # time.sleep(123)
@@ -216,9 +217,8 @@ def main(argv):
             wbc_controller.ControllerMode.TERMINATE)
 
         robot.controller.dump_logs()  # Record and dump logs
-        time.sleep(5)
-
-        # robot.controller.stop_thread()
+        # time.sleep(5)
+        robot.controller.stop_thread()
 
 
 if __name__ == "__main__":

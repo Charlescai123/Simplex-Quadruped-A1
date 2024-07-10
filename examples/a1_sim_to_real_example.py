@@ -11,10 +11,9 @@ from absl import logging
 import numpy as np
 import pybullet as p  # pytype: disable=import-error
 
-from locomotion.envs import env_builder
-from locomotion.robots import a1
-from locomotion.robots import a1_robot
-from locomotion.robots import robot_config
+from src.envs.locomotion import env_builder
+from src.envs.locomotion.robots import a1, a1_robot
+from src.envs.locomotion import robot_config
 
 
 def main(_):

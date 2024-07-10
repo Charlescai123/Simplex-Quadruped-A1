@@ -1,0 +1,27 @@
+2024-07-08 14:27:06.247116: I tensorflow/stream_executor/platform/default/dso_loader.cc:53] Successfully opened dynamic library libcudart.so.11.0
+Traceback (most recent call last):
+  File "/home/mao/anaconda3/envs/PhyDRL/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/mao/anaconda3/envs/PhyDRL/lib/python3.9/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/home/mao/Desktop/devel/Simplex-Quadruped-A1/examples/main_drl_example.py", line 18, in <module>
+    from src.trainer.a1_trainer import A1Trainer
+  File "/home/mao/Desktop/devel/Simplex-Quadruped-A1/src/trainer/a1_trainer.py", line 8, in <module>
+    from src.ha_teacher.ha_teacher import HATeacher
+  File "/home/mao/Desktop/devel/Simplex-Quadruped-A1/src/ha_teacher/ha_teacher.py", line 19, in <module>
+    import matplotlib.pyplot as plt
+  File "/home/mao/anaconda3/envs/PhyDRL/lib/python3.9/site-packages/matplotlib/pyplot.py", line 66, in <module>
+    from matplotlib.figure import Figure, FigureBase, figaspect
+  File "/home/mao/anaconda3/envs/PhyDRL/lib/python3.9/site-packages/matplotlib/figure.py", line 43, in <module>
+    from matplotlib import _blocking_input, backend_bases, _docstring, projections
+  File "/home/mao/anaconda3/envs/PhyDRL/lib/python3.9/site-packages/matplotlib/projections/__init__.py", line 55, in <module>
+    from .. import axes, _docstring
+  File "/home/mao/anaconda3/envs/PhyDRL/lib/python3.9/site-packages/matplotlib/axes/__init__.py", line 2, in <module>
+    from ._axes import *
+  File "<frozen importlib._bootstrap>", line 1007, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 986, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 680, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 851, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 983, in get_code
+  File "<frozen importlib._bootstrap_external>", line 647, in _compile_bytecode
+KeyboardInterrupt

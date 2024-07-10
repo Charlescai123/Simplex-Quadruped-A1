@@ -1,0 +1,158 @@
+# @package envs.robot
+
+constant:
+  # Constants (Motor Control Modes)
+  motor_control_mode:
+    position: &position_control 0
+    torque: &torque_control 1
+    hybrid: &hybrid_control 2
+    
+# 12 Robot Motors
+motor_group:
+  _target_: src.envs.robot.unitree_a1.motors.MotorGroup
+  gen_by_yaml: true
+  motors:
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "FR_hip_joint"
+      motor_control_mode: *position_control
+      init_position: 0.0
+      min_position: -0.802851455917
+      max_position: 0.802851455917
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 1
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "FR_thigh_joint"
+      motor_control_mode: *position_control
+      init_position: 0.9
+      min_position: -1.0471975512
+      max_position: 4.18879020479
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "FR_calf_joint"
+      motor_control_mode: *position_control
+      init_position: -1.8
+      min_position: -2.6965336943
+      max_position: -0.916297857297
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "FL_hip_joint"
+      motor_control_mode: *position_control
+      init_position: 0.0
+      min_position: -0.802851455917
+      max_position: 0.802851455917
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 1
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "FL_thigh_joint"
+      motor_control_mode: *position_control
+      init_position: 0.9
+      min_position: -1.0471975512
+      max_position: 4.18879020479
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "FL_calf_joint"
+      motor_control_mode: *position_control
+      init_position: -1.8
+      min_position: -2.6965336943
+      max_position: -0.916297857297
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "RR_hip_joint"
+      motor_control_mode: *position_control
+      init_position: 0.0
+      min_position: -0.802851455917
+      max_position: 0.802851455917
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 1
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "RR_thigh_joint"
+      motor_control_mode: *position_control
+      init_position: 0.9
+      min_position: -1.0471975512
+      max_position: 4.18879020479
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "RR_calf_joint"
+      motor_control_mode: *position_control
+      init_position: -1.8
+      min_position: -2.6965336943
+      max_position: -0.916297857297
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "RL_hip_joint"
+      motor_control_mode: *position_control
+      init_position: 0.0
+      min_position: -0.802851455917
+      max_position: 0.802851455917
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 1
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "RL_thigh_joint"
+      motor_control_mode: *position_control
+      init_position: 0.9
+      min_position: -1.0471975512
+      max_position: 4.18879020479
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2
+    - _target_: src.envs.robot.unitree_a1.motors.MotorModel
+      name: "RL_calf_joint"
+      motor_control_mode: *position_control
+      init_position: -1.8
+      min_position: -2.6965336943
+      max_position: -0.916297857297
+      min_velocity: -16
+      max_velocity: 16
+      min_torque: -33.5
+      max_torque: 33.5
+      kp: 100
+      kd: 2

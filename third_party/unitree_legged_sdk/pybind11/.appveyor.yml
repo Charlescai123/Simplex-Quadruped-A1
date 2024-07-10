@@ -32,6 +32,6 @@ build_script:
     -DCMAKE_SUPPRESS_REGENERATION=1
     .
 - set MSBuildLogger="C:\Program Files\AppVeyor\BuildAgent\Appveyor.MSBuildLogger.dll"
-- cmake --build . --config %CONFIG% --target pytest -- /m /v:m /logger:%MSBuildLogger%
-- cmake --build . --config %CONFIG% --target cpptest -- /m /v:m /logger:%MSBuildLogger%
+- cmake --build . --config_json %CONFIG% --target pytest -- /m /v:m /logger:%MSBuildLogger%
+- cmake --build . --config_json %CONFIG% --target cpptest -- /m /v:m /logger:%MSBuildLogger%
 on_failure: if exist "tests\test_cmake_build" type tests\test_cmake_build\*.log*

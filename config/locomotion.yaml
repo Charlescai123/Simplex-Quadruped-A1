@@ -1,0 +1,28 @@
+general:
+  name: 'simulation'
+  runtime: 10            # Time for running the robot (seconds)
+  deploy_phydrl: false   # Whether to use Phy-DRL for inference
+  log_dir: 'saved/logs/robot'
+
+defaults:
+  - envs: sim_v2.yaml
+#  - simulator: sim_a1.yaml
+#  - simulator: sim_a1_ros.yaml
+#  - simulator: sim_a1_bullet.yaml
+  - phydrl: phydrl.yaml
+  - robot: a1_sim.yaml  # Use simulation robot by default
+  - _self_
+
+#robot:
+#  robot/interface: a1_robot
+
+hydra:
+  run:
+    dir: "saved/logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}"
+  sweep:
+    dir: "saved/logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}"
+    subdir: "${hydra.job.num}_${hydra.job.id}"
+#  hydra_logging:
+#    root:
+#      # Set resolve to True to enable variable interpolation
+#      resolve: true

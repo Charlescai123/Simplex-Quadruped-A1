@@ -117,7 +117,7 @@ else:
   include_dirs += NP_DIRS
 
 sources = [
-    "locomotion/mpc_controller/mpc_osqp.cc",
+    "robot/mpc_controller/mpc_osqp.cc",
     "third_party/osqp/src/auxil.c",
     "third_party/osqp/src/cs.c",
     "third_party/osqp/src/ctrlc.c",

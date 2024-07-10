@@ -1,0 +1,16 @@
+# @package envs.robot
+stance_controller:
+  qp_solver: "qpOASES"
+  ddq_kp: [ 0.1, 0.1, 100., 100., 100., 0.1 ]
+  ddq_kd: [ 40., 30., 10., 10., 10., 30. ]
+  ddq_factor: 1.
+  ddq_bound: [ 10., 10., 10., 20., 20., 20. ]
+  friction_coeff: 0.45
+  reg_weight: 1e-4
+  mpc_weights: [ 1., 1., 0, 0, 0, 10, 0., 0., .1, .1, .1, .0, 0 ]
+  # These weights also give good results.
+  # _MPC_WEIGHTS = (1., 1., 0, 0, 0, 20, 0., 0., .1, 1., 1., .0, 0.)
+
+  acc_weights: [ 1, 1, 1, 10, 10, 1 ]
+  planning_horizon_steps: 10
+  planning_timestep: 0.025

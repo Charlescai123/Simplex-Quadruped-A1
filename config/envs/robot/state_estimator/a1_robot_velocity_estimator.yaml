@@ -1,0 +1,4 @@
+# @package envs.robot
+com_velocity_estimator:
+  window_size: 60     # should be [40 - 70]
+  ground_normal_window_size: 10

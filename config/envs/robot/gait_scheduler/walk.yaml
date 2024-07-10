@@ -1,0 +1,12 @@
+# @package envs.robot
+constant:
+  pi: &pi 3.141592653589793               # pi
+  -dot2pi: &-dot2pi -0.6283185307179586   # -0.2 * pi
+
+gait_scheduler:
+#  init_gait_phase: [ 0., 0., 0., 0. ] # Enter swing immediately after start
+  init_gait_phase: [*-dot2pi, 0, 0, *-dot2pi]  # Stance for a while after start
+
+  gait_parameter_tuple: [ 2., *pi, *pi, 0, 0.4 ]
+  early_touchdown_phase_threshold: 0.5
+  lose_contact_phase_threshold: 0.1

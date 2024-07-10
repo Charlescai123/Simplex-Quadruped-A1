@@ -1,0 +1,19 @@
+defaults:
+  - envs: sim_v2.yaml
+  - robot: a1_sim.yaml  # Use simulation robot by default
+  - phydrl: phydrl.yaml
+  - _self_
+
+#robot:
+#  robot/interface: a1_robot
+
+hydra:
+  run:
+    dir: "saved/logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}"
+  sweep:
+    dir: "saved/logs/hydra/${now:%Y-%m-%d}/${now:%H-%M-%S}"
+    subdir: "${hydra.job.num}_${hydra.job.id}"
+#  hydra_logging:
+#    root:
+#      # Set resolve to True to enable variable interpolation
+#      resolve: true

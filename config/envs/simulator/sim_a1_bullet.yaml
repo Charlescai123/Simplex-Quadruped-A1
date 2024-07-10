@@ -1,0 +1,29 @@
+# @package simulator
+# Pybullet settings
+
+envs_path: 'simulator/sim_a1_bullet'
+robot_urdf_path: 'src/envs/simulator/sim_a1_bullet/a1/urdf/a1.urdf'
+fixed_time_step: 0.001
+num_solver_iterations: 30
+enable_cone_friction: 0
+show_gui: true  # Show GUI
+
+video:
+  record: false     # Record a video or not
+  save_path: '/home/mao/Desktop/simulation.mp4'
+
+camera:
+  is_on: false
+  distance: 4.
+  yaw: -105
+  pitch: -15
+  target_position: [3, 0, 0]
+
+#add_terrain: false
+#random_reset_eval: false
+#random_reset_train: false
+#action_magnitude: 1
+
+#fall_threshold: 0.12
+# friction = 0.44          # Original icy road
+friction: 0.35            # change friction from higher to lower 0.44,

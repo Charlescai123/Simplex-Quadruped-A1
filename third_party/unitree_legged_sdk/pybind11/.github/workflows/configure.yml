@@ -76,9 +76,9 @@ jobs:
     - name: Build
       working-directory: build dir
       if: github.event_name == 'workflow_dispatch'
-      run: cmake --build . --config Release
+      run: cmake --build . --config_json Release
 
     - name: Test
       working-directory: build dir
       if: github.event_name == 'workflow_dispatch'
-      run: cmake --build . --config Release --target check
+      run: cmake --build . --config_json Release --target check

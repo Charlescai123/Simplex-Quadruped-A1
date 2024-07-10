@@ -13,14 +13,13 @@ from pybullet_utils import bullet_client
 import time
 from typing import Tuple
 
-from locomotion.robots.motors import MotorCommand
-from config.locomotion.robots import a1_params
-from config.locomotion.robots import a1_robot_params
-from config.locomotion.robots import motor_params
-from config.locomotion.controllers import swing_params
-from config.locomotion.controllers import stance_params
-from locomotion.robots import a1_robot
-from locomotion.robots import a1
+from src.envs.locomotion.robots.motors import MotorCommand
+from config_json.locomotion.robots import a1_params
+from config_json.locomotion.robots import a1_robot_params
+from config_json.locomotion.robots import motor_params
+from config_json.locomotion.controllers import swing_params
+from config_json.locomotion.controllers import stance_params
+from src.envs.locomotion.robots import a1, a1_robot
 
 flags.DEFINE_bool('use_real_robot', False, 'whether to use real robot.')
 FLAGS = flags.FLAGS
@@ -58,7 +57,7 @@ def main(_):
         p = bullet_client.BulletClient(connection_mode=pybullet.DIRECT)
     else:
         p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
-    p.setAdditionalSearchPath('envs/data')
+    p.setAdditionalSearchPath('simulator/data')
     p.loadURDF("plane.urdf")
     p.setGravity(0.0, 0.0, -9.8)
 

@@ -222,7 +222,7 @@ html_static_path = ['_static']
 #html_search_language = 'en'
 
 # A dictionary with options for the search language support, empty by default.
-# Now only 'ja' uses this config value
+# Now only 'ja' uses this config_json value
 #html_search_options = {'type': 'default'}
 
 # The name of a javascript file (relative to the configuration directory) that
