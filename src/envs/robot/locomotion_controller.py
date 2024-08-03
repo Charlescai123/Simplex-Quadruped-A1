@@ -27,6 +27,7 @@ from src.envs.robot.state_estimator import com_velocity_estimator
 from src.envs.robot.mpc_controller import swing_leg_controller
 from src.envs.robot.mpc_controller import stance_leg_controller_mpc
 from src.envs.robot.mpc_controller import stance_leg_controller_quadprog
+import tensorflow as tf
 
 
 class ControllerMode(enum.Enum):
@@ -148,9 +149,20 @@ class LocomotionController(object):
 
         # Cached variables for real time efficiency when indexing
         if self._ddpg_agent is not None:
-            self._action_magnitude = self._ddpg_agent.params.action.magnitude
+            self._action_magnitude = np.array(self._ddpg_agent.params.action.magnitude)
 
+        TFLITE_FILE_PATH = 'tf_models/tf_lite/model.tflite'
+        # Load the TFLite model and allocate tensors.
+        self.actor_lite = tf.lite.Interpreter(model_path=TFLITE_FILE_PATH)
+        self.actor_lite.allocate_tensors()
+        # Get input and output tensors.
+        self.lite_input_details = self.actor_lite.get_input_details()
+        self.lite_output_details = self.actor_lite.get_output_details()
+
+        self.hp_action = np.array([0., 0., 0., 0., 0., 0.])
+        self.ha_action = np.array([0., 0., 0., 0., 0., 0.])
         self.reset_controllers()
+        self.beta_distribution_noise = np.random.beta(a=0.5, b=0.5, size=6) * 0.5
 
     def _setup_controllers(self):
         print("Setting up the whole body controller...")
@@ -297,36 +309,39 @@ class LocomotionController(object):
             # Observation
             observation = self.tracking_error
 
-            s_drl = time.time()
-            drl_action = self._ddpg_agent.get_action(observation, mode='test')
+            # s_drl = time.time()
+            # drl_action = self._ddpg_agent.get_action(observation, mode='test')
+            drl_action = self.get_action_from_lite(observations=observation)
             drl_action *= self._action_magnitude
-            print(f"drl_action magnitude: {self._action_magnitude}")
-            print(f"drl_action: {drl_action}")
-            e_drl = time.time()
-            print(f"get drl action time: {e_drl - s_drl}")
 
-        s = time.time()
+            # print(f"drl_action magnitude: {self._action_magnitude}")
+            # print(f"drl_action: {drl_action}")
+            # e_drl = time.time()
+            # print(f"get drl action time: {e_drl - s_drl}")
+
+        # s = time.time()
         swing_action = self._swing_controller.get_action()
-        e_swing = time.time()
+        # e_swing = time.time()
         phy_ddq = self._stance_controller.get_model_action()
         if drl_action is not None:
-            hp_action = phy_ddq + drl_action
+            self.hp_action = phy_ddq + drl_action
         else:
-            hp_action = phy_ddq
-        ha_action = self.ha_teacher.get_action()
-        print(f"hp_action: {hp_action}")
-        print(f"ha_action: {ha_action}")
-        terminal_stance_ddq, action_mode = self.coordinator.determine_action(hp_action=hp_action, ha_action=ha_action,
+            self.hp_action = phy_ddq
+        self.ha_action = self.ha_teacher.get_action()
+        # print(f"hp_action: {hp_action}")
+        # print(f"ha_action: {ha_action}")
+        terminal_stance_ddq, action_mode = self.coordinator.determine_action(hp_action=self.hp_action,
+                                                                             ha_action=self.ha_action,
                                                                              epsilon=self.ha_teacher.epsilon)
         stance_action, _ = self.stance_leg_controller.map_ddq_to_action(ddq=terminal_stance_ddq)
 
         motor_action = self.get_motor_action(swing_action=swing_action, stance_action=stance_action)
 
         # stance_action, qp_sol = self._stance_controller.get_action(drl_action=drl_action)
-        e_stance = time.time()
-        print(f"swing_action time: {e_swing - s}")
-        print(f"stance_action time: {e_stance - e_swing}")
-        print(f"total get_action time: {e_stance - s}")
+        # e_stance = time.time()
+        # print(f"swing_action time: {e_swing - s}")
+        # print(f"stance_action time: {e_stance - e_swing}")
+        # print(f"total get_action time: {e_stance - s}")
         qp_sol = None
         return motor_action, dict(qp_sol=qp_sol)
 
@@ -386,6 +401,8 @@ class LocomotionController(object):
             gait_scheduler_phase=self._gait_scheduler.current_phase.copy(),
             leg_states=self._gait_scheduler.leg_states,
             ground_orientation=self._velocity_estimator.ground_orientation_in_world_frame,
+            student_ddq=self.hp_action,
+            teacher_ddq=self.ha_action,
         )
         self._logs.append(frame)
 
@@ -419,13 +436,13 @@ class LocomotionController(object):
             self._gait_config.foot_clearance_land
 
     def run(self):
-        logging.info("Low level thread started...")
+        # logging.info("Low level thread started...")
         curr_time = time.time()
-        print(f"control_thread: {self.control_thread}")
+        # print(f"control_thread: {self.control_thread}")
 
         while self._is_control:
 
-            self._handle_mode_switch()
+            # self._handle_mode_switch()
             # self._handle_gait_switch()
             self.update()
 
@@ -434,20 +451,20 @@ class LocomotionController(object):
             self.ha_teacher.update(error_state=s)  # Teacher update
             self.coordinator.update(state=s)  # Coordinator update
 
-            logging.debug(f"vx: {self._stance_controller.desired_speed}")
-            logging.debug(f"mode is: {self.mode}")
+            # logging.debug(f"vx: {self._stance_controller.desired_speed}")
+            # logging.debug(f"mode is: {self.mode}")
             # time.sleep(1)
 
-            if self._mode == ControllerMode.DOWN:
-                pass
-                # time.sleep(0.1)
+            # if self._mode == ControllerMode.DOWN:
+            #     pass
+            #     # time.sleep(0.1)
+            #
+            # elif self._mode == ControllerMode.STAND:
+            #     action = self._get_stand_action()
+            #     self._robot.step(action)
+            #     # time.sleep(0.001)
 
-            elif self._mode == ControllerMode.STAND:
-                action = self._get_stand_action()
-                self._robot.step(action)
-                # time.sleep(0.001)
-
-            elif self._mode == ControllerMode.WALK:
+            if self._mode == ControllerMode.WALK:
                 s_action = time.time()
                 if self._ddpg_agent is not None:
                     # action, qp_sol = self.get_phydrl_action()
@@ -456,7 +473,7 @@ class LocomotionController(object):
                     action, qp_sol = self.get_action(phydrl=False)
                 e_action = time.time()
 
-                s3 = time.time()
+                # s3 = time.time()
                 # Terminal Action by Coordinator
                 # logger.debug(f"ha_action: {ha_action}")
                 # logger.debug(f"hp_action: {hp_action}")
@@ -466,10 +483,10 @@ class LocomotionController(object):
                 self._robot.step(action)
                 ee = time.time()
 
-                s_log = time.time()
+                # s_log = time.time()
                 self._update_logging()
-                e_log = time.time()
-                print(f"log update time: {e_log - s_log}")
+                # e_log = time.time()
+                # print(f"log update time: {e_log - s_log}")
                 print(f"get action duration: {e_action - s_action}")
                 print(f"step duration: {ee - ss}")
 
@@ -484,7 +501,7 @@ class LocomotionController(object):
             if duration < self._robot.control_timestep:
                 compensate_time = self._robot.control_timestep - duration
                 time.sleep(compensate_time)
-            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            # print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
     def set_controller_mode(self, mode):
         self._desired_mode = mode
@@ -619,3 +636,22 @@ class LocomotionController(object):
 
     def set_foot_landing_clearance(self, foot_landing_clearance):
         raise NotImplementedError()
+
+    def get_action_from_lite(self, observations):
+        # print("entering get_exploitation_action!")
+        import time
+        s = time.time()
+
+        observations = tf.cast([observations], tf.float16)
+        # observations_tensor = tf.expand_dims(observations, 0)
+        self.actor_lite.set_tensor(self.lite_input_details[0]['index'], observations)
+        self.actor_lite.invoke()
+        action_exploitation = self.actor_lite.get_tensor(self.lite_output_details[0]['index'])
+        print(f"action_exploitation: {action_exploitation}")
+        e = time.time()
+        print(f"get exploitation action time:{e - s}")
+        action = np.array(np.squeeze(action_exploitation))
+
+        action += self.beta_distribution_noise
+        action = np.clip(action, -1.0, 1.0)
+        return action

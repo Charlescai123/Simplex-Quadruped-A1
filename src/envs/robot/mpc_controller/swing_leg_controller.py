@@ -208,21 +208,21 @@ class RaibertSwingLegController:
     def get_action(self) -> Mapping[Any, Any]:
 
         # ------------------------- swing get_action part 1 ------------------------
-        s = time.time()
+        # s = time.time()
 
         com_velocity = self._state_estimator.com_velocity_in_body_frame
-        s1 = time.time()
+        # s1 = time.time()
 
         com_velocity = np.array((com_velocity[0], com_velocity[1], 0))  # set z-axis velocity to be 0
-        s2 = time.time()
+        # s2 = time.time()
         _, _, yaw_dot = self._robot.base_angular_velocity_in_body_frame
-        s3 = time.time()
+        # s3 = time.time()
         hip_positions = self._robot.swing_reference_positions
-        s4 = time.time()
+        # s4 = time.time()
         all_joint_angles = {}
 
-        e1 = time.time()
-        print(f"swing get_action part 1 time: {e1 - s}")
+        # e1 = time.time()
+        # print(f"swing get_action part 1 time: {e1 - s}")
         # print(f"part 1-1: {s1 - s}")
         # print(f"part 1-2: {s2 - s1}")
         # print(f"part 1-3: {s3 - s2}")
@@ -230,7 +230,7 @@ class RaibertSwingLegController:
 
         all_joint_angles = {}
 
-        e1 = time.time()
+        # e1 = time.time()
         # print(f"swing get_action part 1 time: {e1 - s}")
 
         for leg_id, leg_state in enumerate(self._gait_scheduler.leg_states):
@@ -309,8 +309,8 @@ class RaibertSwingLegController:
             for joint_id, joint_angle in zip(joint_ids, joint_angles):
                 all_joint_angles[joint_id] = (joint_angle, leg_id)
 
-        e2 = time.time()
-        print(f"swing get_action part 2 time: {e2 - e1}")
+        # e2 = time.time()
+        # print(f"swing get_action part 2 time: {e2 - e1}")
 
         action = {}
         kps = self._robot.motor_group.kps
@@ -329,6 +329,6 @@ class RaibertSwingLegController:
             #     action[joint_id] = (joint_angle_leg_id[0], kps[joint_id], 0,
             #                         kds[joint_id], 0)
 
-        e3 = time.time()
-        print(f"swing get_action part 3 time: {e3 - e2}")
+        # e3 = time.time()
+        # print(f"swing get_action part 3 time: {e3 - e2}")
         return action

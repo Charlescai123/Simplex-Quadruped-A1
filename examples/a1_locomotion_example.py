@@ -45,6 +45,19 @@ WORLD_NAME_TO_CLASS_MAP = dict(plane=plane_world.PlaneWorld,
                                slope=slope_world.SlopeWorld,
                                stair=stair_world.StairWorld,
                                uneven=uneven_world.UnevenWorld)
+import tensorflow as tf
+import os
+# use_gpu = True
+
+
+# if not use_gpu:
+#     os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+# else:
+#     physical_devices = tf.config.list_physical_devices('GPU')
+#     try:
+#         tf.config.experimental.set_memory_growth(physical_devices[0], True)
+#     except:
+#         exit("GPU allocated failed")
 
 
 def mp_patch_start():
@@ -93,7 +106,8 @@ def main(cfg: DictConfig):
     # Show GUI or not
     # if envs_cfg.show_gui:
     if robot_cfg.interface.model == 'a1':
-        p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
+        p = bullet_client.BulletClient(connection_mode=pybullet.DIRECT)
+        # p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
     else:
         p = bullet_client.BulletClient(connection_mode=pybullet.DIRECT)
@@ -143,6 +157,7 @@ def main(cfg: DictConfig):
             shape_observations=12,
             mode='test'
         )
+        ddpg_agent.actor.save("tf_models/actor")
         # print(f"Testing the trained model: {cfg.phydrl.id}")
         ddpg_agent.agent_warmup()
     else:
@@ -210,5 +225,6 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    test_a = tf.constant([1.0, 2.0, 3.0])
     main()
     # app.run(main)

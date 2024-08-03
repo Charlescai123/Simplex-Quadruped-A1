@@ -176,12 +176,12 @@ class TorqueStanceLegController:
 
     def get_action(self, drl_action: np.ndarray = None):
         """Computes the torque for stance legs."""
-        print("----------------------------------- Stance Control Quadprog -----------------------------------")
-        s = time.time()
+        # print("----------------------------------- Stance Control Quadprog -----------------------------------")
+        # s = time.time()
         self._phy_ddq = self.get_model_action()
-        print(f"phy_ddq: {self._phy_ddq}")
-        e = time.time()
-        print(f"phy_ddq time: {e - s}")
+        # print(f"phy_ddq: {self._phy_ddq}")
+        # e = time.time()
+        # print(f"phy_ddq time: {e - s}")
         # Residual action
         if drl_action is not None:
             self._drl_ddq = drl_action

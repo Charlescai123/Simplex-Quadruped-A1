@@ -11,7 +11,7 @@ defaults:
 #a1_model:
 # Sim-to-real settings
 model: 'a1_robot'
-time_step: 0.002
+time_step: 0.0025
 action_repeat: 1
 reset_time: 3         # 3 seconds for resetting
 sync_gui_time: 0.00      # Sync simulator and real-world action in GUI

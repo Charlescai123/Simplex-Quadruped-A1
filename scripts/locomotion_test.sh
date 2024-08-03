@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ID='SeCLM'
-RUNTIME=30
+RUNTIME=10
 DESIRED_VX=0.3
 DEPLOAY_PHYDRL=true
 #CHECKPOINT="results/models/friction_0.7_delay_yaw_penalty"
@@ -16,7 +16,7 @@ ACTION_REPEAT=1
 RESET_TIME=3
 
 
-python3 -m examples.a1_locomotion_example  \
+python -m examples.a1_locomotion_example  \
   general.id=${ID} \
   general.runtime=${RUNTIME} \
   general.checkpoint=${CHECKPOINT} \

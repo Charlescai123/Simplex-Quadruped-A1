@@ -39,8 +39,8 @@ class Coordinator:
         # print(f"last_action_mode: {self.last_action_mode}")
         # print(f"action_mode: {self._action_mode}")
         self._last_action_mode = self._action_mode
-        print(f"hp_action: {hp_action}")
-        print(f"ha_action: {ha_action}")
+        # print(f"hp_action: {hp_action}")
+        # print(f"ha_action: {ha_action}")
 
         # When Teacher deactivated
         if ha_action is None:
@@ -49,22 +49,22 @@ class Coordinator:
             return hp_action, ActionMode.STUDENT
 
         safety_val = safety_value(np.asarray(self._plant_state[2:]), MATRIX_P)
-        print(f"safety_val is: {safety_val}")
+        # print(f"safety_val is: {safety_val}")
 
         # Inside safety envelope (bounded by epsilon)
         if safety_val < epsilon:
-            logger.debug(f"current safety status: {safety_val} < {epsilon}, system is safe")
-            print(f"current safety status: {safety_val} < {epsilon}, system is safe")
+            # logger.debug(f"current safety status: {safety_val} < {epsilon}, system is safe")
+            # print(f"current safety status: {safety_val} < {epsilon}, system is safe")
 
             # Teacher already activated
             if self._last_action_mode == ActionMode.TEACHER:
 
                 # Run for Max Dwell Steps
                 if self._dwell_step <= self.max_dwell_steps:
-                    logger.debug(
-                        f"Teacher activated, run for max dwell time: {self._dwell_step}/{self.max_dwell_steps}")
-                    print(
-                        f"Teacher activated, run for max dwell time: {self._dwell_step}/{self.max_dwell_steps}")
+                    # logger.debug(
+                    #     f"Teacher activated, run for max dwell time: {self._dwell_step}/{self.max_dwell_steps}")
+                    # print(
+                    #     f"Teacher activated, run for max dwell time: {self._dwell_step}/{self.max_dwell_steps}")
                     self._action_mode = ActionMode.TEACHER
                     self._plant_action = ha_action
                     self._dwell_step += 1
@@ -75,20 +75,20 @@ class Coordinator:
                     self._dwell_step = 0  # Reset the dwell steps
                     self._action_mode = ActionMode.STUDENT
                     self._plant_action = hp_action
-                    logger.debug(f"Max dwell time achieved, switch back to HPC control")
-                    print(f"Max dwell time achieved, switch back to HPC control")
+                    # logger.debug(f"Max dwell time achieved, switch back to HPC control")
+                    # print(f"Max dwell time achieved, switch back to HPC control")
                     return hp_action, ActionMode.STUDENT
             else:
                 self._action_mode = ActionMode.STUDENT
                 self._plant_action = hp_action
-                logger.debug(f"Continue HPC behavior")
-                print(f"Continue HPC behavior")
+                # logger.debug(f"Continue HPC behavior")
+                # print(f"Continue HPC behavior")
                 return hp_action, ActionMode.STUDENT
 
         # Outside safety envelope (bounded by epsilon)
         else:
-            logger.debug(f"current safety status: {safety_val} >= {epsilon}, system is unsafe")
-            print(f"current safety status: {safety_val} >= {epsilon}, system is unsafe")
+            # logger.debug(f"current safety status: {safety_val} >= {epsilon}, system is unsafe")
+            # print(f"current safety status: {safety_val} >= {epsilon}, system is unsafe")
             self._action_mode = ActionMode.TEACHER
             self._plant_action = ha_action
             return ha_action, ActionMode.TEACHER

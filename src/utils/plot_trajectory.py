@@ -27,8 +27,8 @@ def plot_robot_trajectory(filepath: str) -> None:
     timestamp = []
     angular_vel = []
     ground_reaction_forces = []
-    phy_ddq = []
-    drl_ddq = []
+    student_ddq = []
+    teacher_ddq = []
     total_ddq = []
     max_ddq = []
     min_ddq = []
@@ -60,9 +60,9 @@ def plot_robot_trajectory(filepath: str) -> None:
         zero_ref.append(0)
         step.append(i)
 
-        phy_ddq.append(phases[i]['stance_ddq'][0])
-        drl_ddq.append(phases[i]['stance_ddq'][1])
-        total_ddq.append(phases[i]['stance_ddq'][2])
+        student_ddq.append(phases[i]['student_ddq'])
+        teacher_ddq.append(phases[i]['teacher_ddq'])
+        # total_ddq.append(phases[i]['stance_ddq'][2])
         min_ddq.append(phases[i]['stance_ddq_limit'][0])
         max_ddq.append(phases[i]['stance_ddq_limit'][1])
 
@@ -80,9 +80,9 @@ def plot_robot_trajectory(filepath: str) -> None:
         # print(type(content[i]['desired_linear_vel']))
 
     step = np.array(step)
-    drl_ddq = np.array(drl_ddq)
-    phy_ddq = np.array(phy_ddq)
-    total_ddq = np.array(total_ddq)
+    teacher_ddq = np.array(teacher_ddq)
+    student_ddq = np.array(student_ddq)
+    # total_ddq = np.array(total_ddq)
     max_ddq = np.array(max_ddq)
     min_ddq = np.array(min_ddq)
 
@@ -262,54 +262,54 @@ def plot_robot_trajectory(filepath: str) -> None:
 
     fig2, axes2 = plt.subplots(2, 3)
 
-    axes2[0, 0].plot(step, phy_ddq[:, 0], zorder=4, label='phy_vx')
-    axes2[0, 0].plot(step, drl_ddq[:, 0], zorder=3, label='drl_vx')
-    axes2[0, 0].plot(step, total_ddq[:, 0], zorder=2, label='total_vx')
+    axes2[0, 0].plot(step, student_ddq[:, 0], zorder=4, label='hp_vx')
+    axes2[0, 0].plot(step, teacher_ddq[:, 0], zorder=3, label='ha_vx')
+    # axes2[0, 0].plot(step, total_ddq[:, 0], zorder=2, label='total_vx')
     axes2[0, 0].plot(step, min_ddq[:, 0], zorder=1, label='ddq_min')
     axes2[0, 0].plot(step, max_ddq[:, 0], zorder=1, label='ddq_max')
     axes2[0, 0].set_xlabel('Time/s')
     axes2[0, 0].set_ylabel('ddq vx')
     axes2[0, 0].legend()
 
-    axes2[0, 1].plot(step, phy_ddq[:, 1], zorder=4, label='phy_vy')
-    axes2[0, 1].plot(step, drl_ddq[:, 1], zorder=3, label='drl_vy')
-    axes2[0, 1].plot(step, total_ddq[:, 1], zorder=2, label='total_vy')
+    axes2[0, 1].plot(step, student_ddq[:, 1], zorder=4, label='hp_vy')
+    axes2[0, 1].plot(step, teacher_ddq[:, 1], zorder=3, label='ha_vy')
+    # axes2[0, 1].plot(step, total_ddq[:, 1], zorder=2, label='total_vy')
     axes2[0, 1].plot(step, min_ddq[:, 1], zorder=1, label='ddq_min')
     axes2[0, 1].plot(step, max_ddq[:, 1], zorder=1, label='ddq_max')
     axes2[0, 1].set_xlabel('Time/s')
     axes2[0, 1].set_ylabel('ddq vy')
     axes2[0, 1].legend()
 
-    axes2[0, 2].plot(step, phy_ddq[:, 2], zorder=3, label='phy_vz')
-    axes2[0, 2].plot(step, drl_ddq[:, 2], zorder=2, label='drl_vz')
-    axes2[0, 2].plot(step, total_ddq[:, 2], zorder=1, label='total_vz')
+    axes2[0, 2].plot(step, student_ddq[:, 2], zorder=3, label='hp_vz')
+    axes2[0, 2].plot(step, teacher_ddq[:, 2], zorder=2, label='ha_vz')
+    # axes2[0, 2].plot(step, total_ddq[:, 2], zorder=1, label='total_vz')
     axes2[0, 2].plot(step, min_ddq[:, 2], zorder=1, label='ddq_min')
     axes2[0, 2].plot(step, max_ddq[:, 2], zorder=1, label='ddq_max')
     axes2[0, 2].set_xlabel('Time/s')
     axes2[0, 2].set_ylabel('ddq vz')
     axes2[0, 2].legend()
 
-    axes2[1, 0].plot(step, phy_ddq[:, 3], zorder=3, label='phy_wx')
-    axes2[1, 0].plot(step, drl_ddq[:, 3], zorder=2, label='drl_wx')
-    axes2[1, 0].plot(step, total_ddq[:, 3], zorder=1, label='total_wx')
+    axes2[1, 0].plot(step, student_ddq[:, 3], zorder=3, label='hp_wx')
+    axes2[1, 0].plot(step, teacher_ddq[:, 3], zorder=2, label='ha_wx')
+    # axes2[1, 0].plot(step, total_ddq[:, 3], zorder=1, label='total_wx')
     axes2[1, 0].plot(step, min_ddq[:, 3], zorder=1, label='ddq_min')
     axes2[1, 0].plot(step, max_ddq[:, 3], zorder=1, label='ddq_max')
     axes2[1, 0].set_xlabel('Time/s')
     axes2[1, 0].set_ylabel('ddq wx')
     axes2[1, 0].legend()
 
-    axes2[1, 1].plot(step, phy_ddq[:, 4], zorder=3, label='phy_wy')
-    axes2[1, 1].plot(step, drl_ddq[:, 4], zorder=2, label='drl_wy')
-    axes2[1, 1].plot(step, total_ddq[:, 4], zorder=1, label='total_wy')
+    axes2[1, 1].plot(step, student_ddq[:, 4], zorder=3, label='hp_wy')
+    axes2[1, 1].plot(step, teacher_ddq[:, 4], zorder=2, label='ha_wy')
+    # axes2[1, 1].plot(step, total_ddq[:, 4], zorder=1, label='total_wy')
     axes2[1, 1].plot(step, min_ddq[:, 4], zorder=1, label='ddq_min')
     axes2[1, 1].plot(step, max_ddq[:, 4], zorder=1, label='ddq_max')
     axes2[1, 1].set_xlabel('Time/s')
     axes2[1, 1].set_ylabel('ddq wy')
     axes2[1, 1].legend()
 
-    axes2[1, 2].plot(step, phy_ddq[:, 5], zorder=3, label='phy_wz')
-    axes2[1, 2].plot(step, drl_ddq[:, 5], zorder=2, label='drl_wz')
-    axes2[1, 2].plot(step, total_ddq[:, 5], zorder=1, label='total_wz')
+    axes2[1, 2].plot(step, student_ddq[:, 5], zorder=3, label='hp_wz')
+    axes2[1, 2].plot(step, teacher_ddq[:, 5], zorder=2, label='ha_wz')
+    # axes2[1, 2].plot(step, total_ddq[:, 5], zorder=1, label='total_wz')
     axes2[1, 2].plot(step, min_ddq[:, 5], zorder=1, label='ddq_min')
     axes2[1, 2].plot(step, max_ddq[:, 5], zorder=1, label='ddq_max')
     axes2[1, 2].set_xlabel('Time/s')
@@ -401,7 +401,8 @@ if __name__ == '__main__':
         folder_name = str(sys.argv[1])
         file_order = int(sys.argv[2])
 
-    dir_name = f"saved/logs/robot/{folder_name}"
+    # dir_name = f"saved/logs/robot/{folder_name}"
+    dir_name = f"saved/logs/robotr/{folder_name}"
 
     # dir_name = "logs/robot/real_plant"
     files = os.listdir(dir_name)

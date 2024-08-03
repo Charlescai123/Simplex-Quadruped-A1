@@ -200,19 +200,19 @@ class HATeacher:
         # self.triggered_roll.value = self._plant_state[3]
         # self.triggered_pitch.value = self._plant_state[4]
         # self.triggered_yaw.value = self._plant_state[5]
-        if self.action_counter % 200 == 0:
-            self.triggered_roll.value = self._plant_state[3]
-            self.triggered_pitch.value = self._plant_state[4]
-            self.triggered_yaw.value = self._plant_state[5]
-            # self._patch_kp = np.array(self._f_kp).reshape(6, 6)
-            # self._patch_kd = np.array(self._f_kd).reshape(6, 6)
-            for idx in range(36):
-                i = idx // 6
-                j = idx % 6
-                if self._f_kp[idx] != 0:
-                    self._patch_kp[i][j] = self._f_kp[idx]
-                if self._f_kd[idx] != 0:
-                    self._patch_kd[i][j] = self._f_kd[idx]
+        # if self.action_counter % 200 == 0:
+        #     self.triggered_roll.value = self._plant_state[3]
+        #     self.triggered_pitch.value = self._plant_state[4]
+        #     self.triggered_yaw.value = self._plant_state[5]
+        #     # self._patch_kp = np.array(self._f_kp).reshape(6, 6)
+        #     # self._patch_kd = np.array(self._f_kd).reshape(6, 6)
+        #     for idx in range(36):
+        #         i = idx // 6
+        #         j = idx % 6
+        #         if self._f_kp[idx] != 0:
+        #             self._patch_kp[i][j] = self._f_kp[idx]
+        #         if self._f_kd[idx] != 0:
+        #             self._patch_kd[i][j] = self._f_kd[idx]
 
         # if self.action_counter % 20 == 0:
         #     import time
@@ -221,25 +221,25 @@ class HATeacher:
         #     self._patch_kp, self._patch_kd = self.system_patch(roll=roll, pitch=pitch, yaw=yaw)
         #     e = time.time()
         #     print(f"patch time: {e - s}")
-        s0 = time.time()
+        # s0 = time.time()
         # self.triggered_roll.value = self._plant_state[3]
         # self.triggered_pitch.value = self._plant_state[4]
         # self.triggered_yaw.value = self._plant_state[5]
-        s1 = time.time()
-        print(f"self._f_kp: {self._f_kp}")
-        print(f"self._f_kd: {self._f_kd}")
-        print(f"self._patch_kp: {self._patch_kp}")
-        print(f"self._patch_kd: {self._patch_kd}")
-        print(f"self._patch_center: {self._patch_center}")
-        print(f"self._plant_state: {self._plant_state}")
-        s2 = time.time()
+        # s1 = time.time()
+        # print(f"self._f_kp: {self._f_kp}")
+        # print(f"self._f_kd: {self._f_kd}")
+        # print(f"self._patch_kp: {self._patch_kp}")
+        # print(f"self._patch_kd: {self._patch_kd}")
+        # print(f"self._patch_center: {self._patch_center}")
+        # print(f"self._plant_state: {self._plant_state}")
+        # s2 = time.time()
         teacher_action = np.squeeze(self._patch_kp @ (self._plant_state[:6] - self._patch_center[:6]) * -1
                                     + self._patch_kd @ (self._plant_state[6:] - self._patch_center[6:]) * -1)
-        s3 = time.time()
-        print(f"teacher_action part 1 time: {s1 - s0}")
-        print(f"teacher_action part 2 time: {s2 - s1}")
-        print(f"teacher_action part 3 time: {s3 - s2}")
-        print(f"teacher_action total time: {s3 - s0}")
+        # s3 = time.time()
+        # print(f"teacher_action part 1 time: {s1 - s0}")
+        # print(f"teacher_action part 2 time: {s2 - s1}")
+        # print(f"teacher_action part 3 time: {s3 - s2}")
+        # print(f"teacher_action total time: {s3 - s0}")
 
         # self._phy_ddq = (kp @ (err_q - chi * state_trig[:6])
         #                  + kd @ (err_dq - chi * state_trig[6:])).squeeze()

@@ -1,0 +1,12 @@
+- general.id=SeCLM
+- general.runtime=30
+- general.checkpoint=results/models/friction_0.7_delay_vel_0.6_sub_optimal1_best
+- general.deploy_phydrl=true
+- envs/simulator=sim_v2
+- envs.simulator.fixed_time_step=0.002
+- envs.simulator.friction=0.7
+- envs/robot=a1_sim
+- envs.robot.command.desired_vx=0.3
+- envs/robot/mpc_controller/stance_leg=stance_control_quadprog
+- envs.robot.interface.reset_time=3
+- envs.robot.interface.action_repeat=1
