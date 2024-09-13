@@ -61,14 +61,14 @@ class DDPGAgent:
             raise NotImplementedError(f"{self.params.action.add_noise} noise is not implemented")
 
     def save_weights(self, model_save_path):
-        print("entering save_weights!")
+        # print("entering save_weights!")
         self.actor.save_weights(os.path.join(model_save_path, "actor"))
         self.actor_target.save_weights(os.path.join(model_save_path, "actor_target"))
         self.critic.save_weights(os.path.join(model_save_path, "critic"))
         self.critic_target.save_weights(os.path.join(model_save_path, "critic_target"))
 
     def load_weights(self, model_path, mode='train'):
-
+        print(f"model_path: {model_path}")
         self.actor.load_weights(os.path.join(model_path, "actor"))
 
         if mode == "train":

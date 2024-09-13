@@ -1,33 +1,43 @@
 """A phydrl based controller framework."""
+from absl import logging
 
-import os
 import enum
-import copy
-import time
+import ml_collections
+import numpy as np
+import os
 import pickle
 import pybullet
-import threading
-import numpy as np
-import ml_collections
-import multiprocessing
 from datetime import datetime
 from pybullet_utils import bullet_client
+import threading
+import multiprocessing
+import time
 from typing import Tuple, Any
-from typing import Mapping
-from absl import logging
-from omegaconf import DictConfig
+import copy
 
-# from robot.robot import a1
+from src.envs.simulator.worlds import abstract_world, plane_world
+
+from config_json.locomotion.robots.pose import Pose
+from config_json.locomotion.robots.a1_params import A1Params
+from config_json.locomotion.gait_scheduler import crawl, trot
+from config_json.locomotion.gait_scheduler import flytrot
+from config_json.locomotion.robots.a1_robot_params import A1RobotParams
+from config_json.locomotion.controllers.swing_params import SwingControllerParams
+from config_json.locomotion.controllers.stance_params import StanceControllerParams
+
 from src.hp_student.agents.ddpg import DDPGAgent
-from src.envs.simulator.worlds import plane_world, abstract_world
-from src.envs.robot.unitree_a1.motors import MotorCommand
-from src.envs.robot.unitree_a1.motors import MotorControlMode
-from src.envs.robot.gait_scheduler import offset_gait_scheduler
-from src.envs.robot.state_estimator import com_velocity_estimator
-from src.envs.robot.mpc_controller import swing_leg_controller
-from src.envs.robot.mpc_controller import stance_leg_controller_mpc
-from src.envs.robot.mpc_controller import stance_leg_controller_quadprog
-import tensorflow as tf
+from config_json.a1_phydrl_params import A1PhyDRLParams
+# from robot.robot.a1 import A1
+from src.hp_student.agents.replay_mem import ReplayMemory
+from src.envs.locomotion.mpc_controller import swing_leg_controller
+from src.envs.locomotion.gait_scheduler import offset_gait_scheduler
+from src.envs.locomotion.state_estimator import com_velocity_estimator
+
+from src.envs.locomotion.mpc_controller import stance_leg_controller_mpc
+from src.envs.locomotion.mpc_controller import stance_leg_controller_quadprog
+
+from src.envs.locomotion.robots.motors import MotorCommand
+from src.ha_teacher import ha_teacher
 
 
 class ControllerMode(enum.Enum):
@@ -44,7 +54,7 @@ class GaitType(enum.Enum):
 
 
 class LocomotionController(object):
-    """Robot's Locomotion Controller.
+    """Whole Body Controller for the robot's entire robot.
 
     The actual effect of this controller depends on the composition of each
     individual subcomponent.
@@ -54,6 +64,7 @@ class LocomotionController(object):
     def __init__(
             self,
             robot: Any = None,
+            mat_engine: Any = None,
             ddpg_agent: DDPGAgent = None,
             desired_speed: Tuple[float, float] = [0., 0.],
             desired_twisting_speed: float = 0.,
@@ -61,17 +72,15 @@ class LocomotionController(object):
             mpc_body_mass: float = 110 / 9.8,
             mpc_body_inertia: Tuple[float, float, float, float, float, float, float, float, float] = (
                     0.07335, 0, 0, 0, 0.25068, 0, 0, 0, 0.25447),
-            gait_config: DictConfig = None,
-            vel_estimator_config: DictConfig = None,
-            swing_config: DictConfig = None,
-            stance_config: DictConfig = None,
+            swing_params: SwingControllerParams = None,
+            stance_params: StanceControllerParams = None,
             logdir: str = 'logs/',
     ):
         """Initializes the class.
 
         Args:
           robot: A robot instance. (Provides sensor input and kinematics)
-          ddpg_agent: An agents instance used to get PhyDRL action (WBC will get mpc action if None)
+          ddpg_agent: An agent instance used to get PhyDRL action (WBC will get mpc action if None)
           desired_speed: desired CoM speed in x-y plane.
           desired_twisting_speed: desired CoM rotating speed in z direction.
           desired_com_height: The standing height of CoM of the robot.
@@ -86,34 +95,64 @@ class LocomotionController(object):
         self._ddpg_agent = ddpg_agent
         self._gait_scheduler = None
         self._velocity_estimator = None
-
-        # Parameter config
-        self._gait_config = gait_config
-        self._swing_config = swing_config
-        self._stance_config = stance_config
-        self._vel_estimator_config = vel_estimator_config
-
-        from src.ha_teacher.ha_teacher import HATeacher
-        from src.coordinator.coordinator import Coordinator
-        from omegaconf import DictConfig
+        self._swing_params = swing_params
+        self._stance_params = stance_params
 
         teacher_config = DictConfig({"chi": 0.25, "teacher_enable": True, "epsilon": 0.6, "cvxpy_solver": "solver"})
         coordinator_config = DictConfig({"teacher_learn": True, "max_dwell_steps": 150})
         self.ha_teacher = HATeacher(robot=self._robot, teacher_cfg=teacher_config)
         self.coordinator = Coordinator(config=coordinator_config)
 
-        # Logs
+        self._max_episode_steps = 5000
+        self._total_steps = 50000
+        self._minibatch_size = 300
         self._logs = []
         self._logdir = logdir
 
-        # Desired v/w
+        self._continual_logdir = 'continual'
+
+        self._replay_buffer_path = self._continual_logdir + '/buffer.pickle'
+        # self._replay_buffer_path = None
+        self._pretrained_weights_path = self._continual_logdir + '/online_cl_model'
+
+        if self._pretrained_weights_path is not None:
+            self.ddpg_agent.load_weights(self._pretrained_weights_path)
+            print(f"Loading pretrained model {self._pretrained_weights_path} from the last training")
+
+        try:
+            with open(self._replay_buffer_path, 'rb') as f:
+                self._replay_buffer = pickle.load(f)
+                print(f"Loading replay buffer {self._replay_buffer_path} from the last training")
+                # self.ddpg_agent.change_learning_rate(lr_rate_actor=0.0001, lr_rate_critic=0.0001)
+                self.ddpg_agent.change_learning_rate(lr_rate_actor=0, lr_rate_critic=0)
+                for _ in range(1):
+                    minibatch = self._replay_buffer.sample(self._minibatch_size)
+                    _ = self.ddpg_agent.optimize(minibatch)
+        except:
+            self._replay_buffer = ReplayMemory(size=2e5)
+            for _ in range(300):
+                virtual_experience = (np.zeros(12), np.zeros(6), np.zeros(1), np.zeros(12), False)
+                self._replay_buffer.add(virtual_experience)
+            minibatch = self._replay_buffer.sample(self._minibatch_size)
+            self.ddpg_agent.change_learning_rate(lr_rate_actor=0, lr_rate_critic=0)
+            _ = self.ddpg_agent.optimize(minibatch)
+            self._replay_buffer = ReplayMemory(size=2e5)
+
+        # optimization warm up
+        # self.ddpg_agent.change_learning_rate(lr_rate_actor=self.ddpg_agent.params.learning_rate_actor,
+        #                                      lr_rate_critic=self.ddpg_agent.params.learning_rate_critic)
+        self.ddpg_agent.change_learning_rate(lr_rate_actor=0, lr_rate_critic=0)
+
+        self.ddpg_agent.agent_warmup()
+        self.reward = 0
+        self.critic_loss = 100
+
         self._desired_speed = desired_speed
         self._desired_twisting_speed = desired_twisting_speed
 
-        # MPC parameters
         self._desired_com_height = desired_com_height
         self._mpc_body_mass = mpc_body_mass
-        self._mpc_body_inertia = np.asarray(mpc_body_inertia)
+        self._mpc_body_inertia = mpc_body_inertia
 
         self._desired_mode = None
         self._is_control = False
@@ -137,32 +176,16 @@ class LocomotionController(object):
         # self.run_thread = multiprocessing.Process(target=self.run)
         # self.run_thread.start()
 
-        self._robot_state = np.zeros(12)
         vx = self._desired_speed[0]
         vy = self._desired_speed[1]
         wz = self._desired_twisting_speed
         pz = self._desired_com_height
-        self._ref_point = np.array([0., 0., pz,  # p
-                                    0., 0., 0.,  # rpy
-                                    vx, vy, 0.,  # v
-                                    0., 0., wz])  # rpy_dot
+        self.set_point = np.array([0., 0., pz,  # p
+                                   0., 0., 0.,  # rpy
+                                   vx, vy, 0.,  # v
+                                   0., 0., wz])  # rpy_dot
 
-        # Cached variables for real time efficiency when indexing
-        if self._ddpg_agent is not None:
-            self._action_magnitude = np.array(self._ddpg_agent.params.action.magnitude)
-
-        TFLITE_FILE_PATH = 'tf_models/tf_lite/model.tflite'
-        # Load the TFLite model and allocate tensors.
-        self.actor_lite = tf.lite.Interpreter(model_path=TFLITE_FILE_PATH)
-        self.actor_lite.allocate_tensors()
-        # Get input and output tensors.
-        self.lite_input_details = self.actor_lite.get_input_details()
-        self.lite_output_details = self.actor_lite.get_output_details()
-
-        self.hp_action = np.array([0., 0., 0., 0., 0., 0.])
-        self.ha_action = np.array([0., 0., 0., 0., 0., 0.])
         self.reset_controllers()
-        self.beta_distribution_noise = np.random.beta(a=0.5, b=0.5, size=6) * 0.5
 
     def _setup_controllers(self):
         print("Setting up the whole body controller...")
@@ -170,18 +193,18 @@ class LocomotionController(object):
 
         # Gait Generator
         print("Setting up the gait generator")
-        init_gait_phase = np.array(self._gait_config.init_gait_phase)
-        gait_param_tuple = tuple(self._gait_config.gait_parameter_tuple)
+        init_gait_phase = self._robot.robot_params.init_gait_phase
+        gait_params = self._robot.robot_params.gait_params
         self._gait_scheduler = offset_gait_scheduler.OffsetGaitScheduler(
             robot=self._robot,
             init_phase=init_gait_phase,
-            gait_parameters=gait_param_tuple
+            gait_parameters=gait_params
         )
 
         # State Estimator
         print("Setting up the state estimator")
-        window_size = self._vel_estimator_config.window_size
-        ground_normal_window_size = self._vel_estimator_config.ground_normal_window_size
+        window_size = self._robot.robot_params.window_size
+        ground_normal_window_size = self._robot.robot_params.ground_normal_window_size
         self._velocity_estimator = com_velocity_estimator.COMVelocityEstimator(
             robot=self._robot,
             velocity_window_size=window_size,
@@ -198,12 +221,12 @@ class LocomotionController(object):
                 desired_speed=self._desired_speed,
                 desired_twisting_speed=self._desired_twisting_speed,
                 desired_com_height=self._desired_com_height,
-                swing_params=self._swing_config
+                swing_params=self._swing_params
             )
 
         # Stance Leg Controller
         print("Setting up the stance leg controller")
-        if self._stance_config.qp_solver == 'quadprog':
+        if self._stance_params.objective_function == 'acceleration':
             self._stance_controller = \
                 stance_leg_controller_quadprog.TorqueStanceLegController(
                     robot=self._robot,
@@ -214,10 +237,10 @@ class LocomotionController(object):
                     desired_com_height=self._desired_com_height,
                     body_mass=self._mpc_body_mass,
                     body_inertia=self._mpc_body_inertia,
-                    stance_params=self._stance_config
+                    stance_params=self._stance_params
                 )
 
-        elif self._stance_config.qp_solver == 'qpOASES':
+        elif self._stance_params.objective_function == 'state':
             self._stance_controller = \
                 stance_leg_controller_mpc.TorqueStanceLegController(
                     robot=self._robot,
@@ -228,13 +251,17 @@ class LocomotionController(object):
                     desired_com_height=self._desired_com_height,
                     body_mass=self._mpc_body_mass,
                     body_inertia=self._mpc_body_inertia,
-                    stance_params=self._stance_config
+                    stance_params=self._stance_params
                 )
 
         else:
             raise RuntimeError("Unspecified objective function for stance controller")
 
         print("Whole body controller settle down!")
+
+    @property
+    def ddpg_agent(self):
+        return self._ddpg_agent
 
     @property
     def control_thread(self):
@@ -297,53 +324,71 @@ class LocomotionController(object):
         #     stance_leg_controller_mpc.PLANNING_TIMESTEP)
         # self._stance_controller.update(self._time_since_reset, future_contact_estimate)
         self._stance_controller.update(self._time_since_reset)
-        self._robot_state = self.state_vector
 
-    def get_action(self, phydrl=False, drl_action=None):
+    def get_action(self, phydrl=False, drl_action=None, simplex=False):
         """Returns the control outputs (e.g. positions/torques) for all motors."""
-
+        drl_nominal_ddq = np.zeros(6)
         # Get PhyDRL action (Inference)
         if phydrl is True and drl_action is None:
             # print(f"Getting action from PhyDRL model {self._ddpg_agent.params.model_path}")
 
+            # State vector
+            state_vector = self.state_vector
+
+            # Tracking error
+            tracking_error = state_vector - self.set_point
+            print(f"states_vector: {state_vector}")
+            # print(f"set_points: {set_points}")
+            print(f"tracking_error: {tracking_error}")
+
             # Observation
-            observation = self.tracking_error
+            observation = tracking_error
 
-            # s_drl = time.time()
-            # drl_action = self._ddpg_agent.get_action(observation, mode='test')
-            drl_action = self.get_action_from_lite(observations=observation)
-            drl_action *= self._action_magnitude
+            s_drl = time.time()
+            drl_action = self._ddpg_agent.get_action(observation, mode='test')
 
-            # print(f"drl_action magnitude: {self._action_magnitude}")
-            # print(f"drl_action: {drl_action}")
-            # e_drl = time.time()
-            # print(f"get drl action time: {e_drl - s_drl}")
+            if simplex:
+                drl_nominal_ddq = copy.deepcopy(drl_action)
 
-        # s = time.time()
+            # drl_action_magnitude = np.array([2, 2, 3, 4, 4, 2])
+            drl_action_magnitude = self._ddpg_agent.params.action_magnitude
+            drl_action *= drl_action_magnitude
+
+            e_drl = time.time()
+            print(f"get drl action time: {e_drl - s_drl}")
+
+        # Action delay
+        if self._ddpg_agent is not None and self._ddpg_agent.params.add_action_delay:
+            print("add action delay...")
+            drl_action = self._ddpg_agent.get_delayed_action(drl_action)
+
+        s = time.time()
         swing_action = self._swing_controller.get_action()
-        # e_swing = time.time()
-        phy_ddq = self._stance_controller.get_model_action()
-        if drl_action is not None:
-            self.hp_action = phy_ddq + drl_action
-        else:
-            self.hp_action = phy_ddq
-        self.ha_action = self.ha_teacher.get_action()
-        # print(f"hp_action: {hp_action}")
-        # print(f"ha_action: {ha_action}")
-        terminal_stance_ddq, action_mode = self.coordinator.determine_action(hp_action=self.hp_action,
-                                                                             ha_action=self.ha_action,
-                                                                             epsilon=self.ha_teacher.epsilon)
-        stance_action, _ = self.stance_leg_controller.map_ddq_to_action(ddq=terminal_stance_ddq)
-
-        motor_action = self.get_motor_action(swing_action=swing_action, stance_action=stance_action)
-
-        # stance_action, qp_sol = self._stance_controller.get_action(drl_action=drl_action)
-        # e_stance = time.time()
+        e_swing = time.time()
+        stance_action, qp_sol, phy_nominal_ddq = self._stance_controller.get_action(drl_action=drl_action)
+        e_stance = time.time()
         # print(f"swing_action time: {e_swing - s}")
         # print(f"stance_action time: {e_stance - e_swing}")
         # print(f"total get_action time: {e_stance - s}")
-        qp_sol = None
-        return motor_action, dict(qp_sol=qp_sol)
+
+        actions = []
+        for joint_id in range(self._robot.num_motors):
+            if joint_id in swing_action:
+                actions.append(swing_action[joint_id])
+            else:
+                assert joint_id in stance_action
+                actions.append(stance_action[joint_id])
+
+        vectorized_action = MotorCommand(
+            desired_position=[action.desired_position for action in actions],
+            kp=[action.kp for action in actions],
+            desired_velocity=[action.desired_velocity for action in actions],
+            kd=[action.kd for action in actions],
+            desired_torque=[
+                action.desired_torque for action in actions
+            ])
+
+        return vectorized_action, dict(qp_sol=qp_sol), drl_nominal_ddq, phy_nominal_ddq
 
     def _get_stand_action(self):
         return MotorCommand(
@@ -370,15 +415,15 @@ class LocomotionController(object):
         else:
             logging.info("Walking.")
             # self.reset_controllers()
-            self._clear_logging()
+            self._start_logging()
 
-    def _clear_logging(self):
+    def _start_logging(self):
         self._logs = []
 
-    def _update_logging(self):
+    def _update_logging(self, action, qp_sol):
         frame = dict(
             timestamp=self._time_since_reset,
-            tracking_error=self.tracking_error,
+            tracking_error=self._robot.controller.tracking_error,
             desired_speed=(self._swing_controller.desired_speed,
                            self._swing_controller.desired_twisting_speed),
             desired_com_height=self._desired_com_height,
@@ -386,7 +431,7 @@ class LocomotionController(object):
             # action_counter=self._robot.action_counter,
             base_position=self._robot.base_position,
             base_rpy=self._robot.base_orientation_rpy,
-            # base_vel=self._robot.motor_velocities,
+            base_vel=self._robot.motor_velocities,
             base_linear_vel_in_body_frame=self._velocity_estimator.com_velocity_in_body_frame,
             base_angular_vel_in_body_frame=self._robot.base_angular_velocity_in_body_frame,
             motor_angles=self._robot.motor_angles,
@@ -401,9 +446,11 @@ class LocomotionController(object):
             gait_scheduler_phase=self._gait_scheduler.current_phase.copy(),
             leg_states=self._gait_scheduler.leg_states,
             ground_orientation=self._velocity_estimator.ground_orientation_in_world_frame,
-            student_ddq=self.hp_action,
-            teacher_ddq=self.ha_action,
+            action_mode=self._ha_teacher.last_action_mode,
+            reward=self.reward,
+            critic_loss=self.critic_loss
         )
+        # print(f"ground_reaction_forces: {self._stance_controller.ground_reaction_forces}")
         self._logs.append(frame)
 
     def _flush_logging(self):
@@ -436,72 +483,117 @@ class LocomotionController(object):
             self._gait_config.foot_clearance_land
 
     def run(self):
-        # logging.info("Low level thread started...")
+        logging.info("Low level thread started...")
         curr_time = time.time()
-        # print(f"control_thread: {self.control_thread}")
+        print(f"control_thread: {self.control_thread}")
+        dwell_steps = 0
+        global_steps = 0
 
         while self._is_control:
 
-            # self._handle_mode_switch()
+            self._handle_mode_switch()
             # self._handle_gait_switch()
             self.update()
 
-            s = self.tracking_error
-            # print(f"self._robot_state: {self._robot_state}")
-            self.ha_teacher.update(error_state=s)  # Teacher update
-            self.coordinator.update(state=s)  # Coordinator update
-
-            # logging.debug(f"vx: {self._stance_controller.desired_speed}")
-            # logging.debug(f"mode is: {self.mode}")
+            print(f"vx: {self._stance_controller.desired_speed}")
+            print(f"mode is: {self.mode}")
             # time.sleep(1)
 
-            # if self._mode == ControllerMode.DOWN:
-            #     pass
-            #     # time.sleep(0.1)
-            #
-            # elif self._mode == ControllerMode.STAND:
-            #     action = self._get_stand_action()
-            #     self._robot.step(action)
-            #     # time.sleep(0.001)
+            if self._mode == ControllerMode.DOWN:
+                pass
+                # time.sleep(0.1)
 
-            if self._mode == ControllerMode.WALK:
-                s_action = time.time()
-                if self._ddpg_agent is not None:
-                    # action, qp_sol = self.get_phydrl_action()
-                    action, qp_sol = self.get_action(phydrl=True)
-                else:
-                    action, qp_sol = self.get_action(phydrl=False)
-                e_action = time.time()
-
-                # s3 = time.time()
-                # Terminal Action by Coordinator
-                # logger.debug(f"ha_action: {ha_action}")
-                # logger.debug(f"hp_action: {hp_action}")
-
-                # time.sleep(0.001)
-                ss = time.time()
+            elif self._mode == ControllerMode.STAND:
+                action = self._get_stand_action()
                 self._robot.step(action)
-                ee = time.time()
+                # time.sleep(0.001)
 
-                # s_log = time.time()
-                self._update_logging()
-                # e_log = time.time()
-                # print(f"log update time: {e_log - s_log}")
-                print(f"get action duration: {e_action - s_action}")
-                print(f"step duration: {ee - ss}")
+            elif self._mode == ControllerMode.WALK:
+                action = None
+                curr_state = self.stance_leg_controller.tracking_error
+                reward_list = []
+                critic_loss_list = []
+                ep_steps = 0
+                critic_loss = 100
+
+                for _ in range(self._max_episode_steps):
+
+                    # Simplex Enable
+                    if self._ha_teacher.teacher_enable:
+                        action, qp_sol, drl_nominal_ddq = self._ha_teacher.get_hac_action(states=curr_state)
+                    # Without Simplex
+                    else:
+                        print("Simplex non implemented for continual learning")
+                        s_action = time.time()
+                        if self._ddpg_agent is not None:
+                            action, qp_sol, drl_nominal_ddq, _ = self.get_action(phydrl=True)
+                            print("get PhyDRL action")
+                        else:
+                            action, qp_sol, drl_nominal_ddq, _ = self.get_action(phydrl=False)
+                            print("get mpc action")
+                        e_action = time.time()
+                        print(f"get action duration: {e_action - s_action}")
+
+                    ss = time.time()
+                    self._robot.step(action)
+                    self.update()
+                    next_state = self.stance_leg_controller.tracking_error  # Current state
+                    reward = get_lyapunov_reward(s=curr_state, s_next=next_state)
+                    self.reward = reward.reshape(1)
+                    self._replay_buffer.add(
+                        (curr_state.reshape(12), drl_nominal_ddq, self.reward, next_state.reshape(12), False))
+
+                    reward_list.append(self.reward)
+
+                    # if self._replay_buffer.get_size() > self._minibatch_size and (ep_steps % 40 == 0):
+                    #     minibatch = self._replay_buffer.sample(self._minibatch_size)
+                    #     # critic_loss = 0
+                    #     # pre = time.time()
+                    #     critic_loss = self.ddpg_agent.optimize(minibatch)
+                    #     self.critic_loss = critic_loss
+                        # post = time.time()
+                        # print(f"optimization time: {post - pre}")
+
+                    critic_loss_list.append(critic_loss)
+                    curr_state = copy.deepcopy(next_state)
+
+                    global_steps += 1
+                    ep_steps += 1
+                    ee = time.time()
+                    s_log = time.time()
+                    self._update_logging(action, qp_sol)
+                    e_log = time.time()
+                    print(f"log update time: {e_log - s_log}")
+                    print(f"step duration: {ee - ss}")
 
             else:
                 logging.info("Running loop terminated, exiting...")
                 break
 
+            mean_reward = np.mean(reward_list)
+            mean_critic_loss = np.mean(critic_loss_list)
+            print(f"Training at {global_steps}, average_reward: {mean_reward}, average_critic: {mean_critic_loss}")
+            # print(f"reward_list: {reward_list}")
+            # print(f"critic_loss_list: {critic_loss_list}")
+
+            reward_file = 'continual/reward/reward_{}.txt'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S'))
+            loss_file = 'continual/loss/loss_{}.txt'.format(datetime.now().strftime('%Y_%m_%d_%H_%M_%S'))
+            np.savetxt(reward_file, np.array(reward_list))
+            np.savetxt(loss_file, np.array(critic_loss_list))
+
+            self.ddpg_agent.save_weights(self._pretrained_weights_path)
+
+            with open(self._replay_buffer_path, 'wb') as f:
+                pickle.dump(self._replay_buffer, f)
+
             final_time = time.time()
             duration = final_time - curr_time
             curr_time = final_time
+            # time.sleep(0.0001)
             print(f"running times in this loop:{duration}")
-            if duration < self._robot.control_timestep:
-                compensate_time = self._robot.control_timestep - duration
-                time.sleep(compensate_time)
-            # print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            print("+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+            print("buffer size:", self._replay_buffer.get_size())
+            exit(0)  # we intentionally terminate for easy reset
 
     def set_controller_mode(self, mode):
         self._desired_mode = mode
@@ -524,37 +616,14 @@ class LocomotionController(object):
         print(f"base_height is: {base_height}")
         print("================================================================================")
 
-        return up_vec > 0.85 and base_height > self._robot.safe_height
-
-    def get_motor_action(self,
-                         swing_action: Mapping[int, MotorCommand],
-                         stance_action: Mapping[int, MotorCommand]
-                         ) -> Mapping[Any, Any]:
-        """Convert swing/stance leg action to motor action"""
-        actions = []
-        for joint_id in range(self._robot.num_motors):
-            if joint_id in swing_action:
-                actions.append(swing_action[joint_id])
-            else:
-                assert joint_id in stance_action
-                actions.append(stance_action[joint_id])
-
-        motor_action = MotorCommand(
-            desired_position=[action.desired_position for action in actions],
-            kp=[action.kp for action in actions],
-            desired_velocity=[action.desired_velocity for action in actions],
-            kd=[action.kd for action in actions],
-            desired_torque=[
-                action.desired_torque for action in actions
-            ])
-
-        return motor_action
+        return up_vec > 0.85 and base_height > self._robot.robot_params.safe_height
 
     @property
     def mode(self):
         return self._mode
 
-    def set_desired_speed(self, desired_lin_speed_ratio, desired_rot_speed_ratio):
+    def set_desired_speed(self, desired_lin_speed_ratio,
+                          desired_rot_speed_ratio):
         # desired_lin_speed = (
         #     self._gait_config.max_forward_speed * desired_lin_speed_ratio[0],
         #     self._gait_config.max_side_speed * desired_lin_speed_ratio[1],
@@ -574,10 +643,6 @@ class LocomotionController(object):
 
         desired_rot_speed = desired_rot_speed_ratio
 
-        self._ref_point[6] = desired_lin_speed[0]
-        self._ref_point[7] = desired_lin_speed[1]
-        self._ref_point[11] = desired_rot_speed
-
         # print(f"set desired_lin_speed: {desired_lin_speed}")
         # print(f"set desired_rot_speed: {desired_rot_speed}")
 
@@ -585,39 +650,6 @@ class LocomotionController(object):
         self._swing_controller.desired_twisting_speed = desired_rot_speed
         self._stance_controller.desired_speed = desired_lin_speed
         self._stance_controller.desired_twisting_speed = desired_rot_speed
-
-    @property
-    def state_vector(self):
-        com_position = self.state_estimator.com_position_in_ground_frame
-        com_velocity = self.state_estimator.com_velocity_in_body_frame
-        com_roll_pitch_yaw = np.array(
-            self._robot.pybullet_client.getEulerFromQuaternion(
-                self.state_estimator.com_orientation_quaternion_in_ground_frame))
-        com_roll_pitch_yaw_rate = self._robot.base_angular_velocity_in_body_frame
-
-        state_vector = np.hstack((com_position, com_roll_pitch_yaw, com_velocity, com_roll_pitch_yaw_rate))
-        return state_vector
-
-    @property
-    def robot_state(self):
-        return self._robot_state
-
-    @property
-    def ref_point(self):
-        return self._ref_point
-
-    @property
-    def tracking_error(self):
-        return self._robot_state - self._ref_point
-
-    def update_logs(self):
-        self._update_logging()
-
-    def clear_logs(self):
-        self._clear_logging()
-
-    def dump_logs(self):
-        self._flush_logging()
 
     def set_gait_parameters(self, gait_parameters):
         raise NotImplementedError()
@@ -637,21 +669,37 @@ class LocomotionController(object):
     def set_foot_landing_clearance(self, foot_landing_clearance):
         raise NotImplementedError()
 
-    def get_action_from_lite(self, observations):
-        # print("entering get_exploitation_action!")
-        import time
-        s = time.time()
+    def dump_logs(self):
+        self._flush_logging()
 
-        observations = tf.cast([observations], tf.float16)
-        # observations_tensor = tf.expand_dims(observations, 0)
-        self.actor_lite.set_tensor(self.lite_input_details[0]['index'], observations)
-        self.actor_lite.invoke()
-        action_exploitation = self.actor_lite.get_tensor(self.lite_output_details[0]['index'])
-        print(f"action_exploitation: {action_exploitation}")
-        e = time.time()
-        print(f"get exploitation action time:{e - s}")
-        action = np.array(np.squeeze(action_exploitation))
+    @property
+    def state_vector(self):
+        com_position = self.state_estimator.com_position_in_ground_frame
+        com_velocity = self.state_estimator.com_velocity_in_body_frame
+        com_roll_pitch_yaw = np.array(
+            self._robot.pybullet_client.getEulerFromQuaternion(
+                self.state_estimator.com_orientation_quaternion_in_ground_frame))
+        com_roll_pitch_yaw_rate = self._robot.base_angular_velocity_in_body_frame
 
-        action += self.beta_distribution_noise
-        action = np.clip(action, -1.0, 1.0)
-        return action
+        state_vector = np.hstack((com_position, com_roll_pitch_yaw, com_velocity, com_roll_pitch_yaw_rate))
+        return state_vector
+
+
+def get_lyapunov_reward(s, s_next):
+    p_mat4 = np.array([[122.164786064669, 0, 0, 0, 2.48716597374493, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 480.62107526958, 0, 0, 0, 0, 0, 155.295455907449],
+                       [2.48716597374493, 0, 0, 0, 3.21760325418695, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 155.295455907449, 0, 0, 0, 0, 0, 156.306807893237]])
+    s_new = s[2:]
+    s_next_new = s_next[2:]
+    ly_reward_curr = s_new.T @ p_mat4 @ s_new
+    ly_reward_next = s_next_new.T @ p_mat4 @ s_next_new
+    reward = ly_reward_curr - ly_reward_next  # multiply scaler to decrease
+
+    return reward

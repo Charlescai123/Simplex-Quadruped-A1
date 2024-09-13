@@ -106,8 +106,8 @@ def main(cfg: DictConfig):
     # Show GUI or not
     # if envs_cfg.show_gui:
     if robot_cfg.interface.model == 'a1':
-        p = bullet_client.BulletClient(connection_mode=pybullet.DIRECT)
-        # p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
+        # p = bullet_client.BulletClient(connection_mode=pybullet.DIRECT)
+        p = bullet_client.BulletClient(connection_mode=pybullet.GUI)
         p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
     else:
         p = bullet_client.BulletClient(connection_mode=pybullet.DIRECT)

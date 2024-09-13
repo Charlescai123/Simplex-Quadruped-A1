@@ -46,7 +46,7 @@ class A1Trainer:
 
         # Cached variables for real time efficiency when indexing
         self._teacher_learn = self.params.coordinator.teacher_learn
-        self._action_magnitude = self.agent_params.action.magnitude
+        self._action_magnitude = np.asarray(self.agent_params.action.magnitude)
         self._random_reset_eval = self.agent_params.random_reset.eval
         self._random_reset_train = self.agent_params.random_reset.train
         self._max_steps_per_episode = int(self.agent_params.max_steps_per_episode)
@@ -82,11 +82,11 @@ class A1Trainer:
         reward = self.a1_env.get_reward(s=s, s_next=s_next)
         s5 = time.time()
 
-        print(f"interaction part1 time: {s1 - s0}")
-        print(f"interaction part2 time: {s2 - s1}")
-        print(f"interaction part3 time: {s3 - s2}")
-        print(f"interaction part4 time: {s4 - s3}")
-        print(f"interaction part5 time: {s5 - s4}")
+        # print(f"interaction part1 time: {s1 - s0}")
+        # print(f"interaction part2 time: {s2 - s1}")
+        # print(f"interaction part3 time: {s3 - s2}")
+        # print(f"interaction part4 time: {s4 - s3}")
+        # print(f"interaction part5 time: {s5 - s4}")
 
         return observations, nominal_action, observations_next, termination, reward, abort
 
@@ -251,13 +251,13 @@ class A1Trainer:
         motor_action = self.a1_env.locomotion_controller.get_motor_action(swing_action=swing_action,
                                                                           stance_action=stance_action)
         s6 = time.time()
-        print(f"get_terminal_action part1 time: {s1 - s0}")
-        print(f"get_terminal_action part2 time: {s2 - s1}")
-        print(f"get_terminal_action part3 time: {s3 - s2}")
-        print(f"get_terminal_action part4 time: {s4 - s3}")
-        print(f"get_terminal_action part5 time: {s5 - s4}")
-        print(f"get_terminal_action part6 time: {s6 - s5}")
-        print(f"get_terminal_action total time: {s6 - s0}")
+        # print(f"get_terminal_action part1 time: {s1 - s0}")
+        # print(f"get_terminal_action part2 time: {s2 - s1}")
+        # print(f"get_terminal_action part3 time: {s3 - s2}")
+        # print(f"get_terminal_action part4 time: {s4 - s3}")
+        # print(f"get_terminal_action part5 time: {s5 - s4}")
+        # print(f"get_terminal_action part6 time: {s6 - s5}")
+        # print(f"get_terminal_action total time: {s6 - s0}")
 
         # print(f"terminal_stance_ddq: {terminal_stance_ddq}")
         # print(f"swing_action: {swing_action}")

@@ -1,4 +1,4 @@
-# Simplex-Quadruped
+# Simplex-Quadruped-A1
 
 ![Tensorflow](https://img.shields.io/badge/Tensorflow-2.5.0-orange?logo=tensorflow)
 ![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python)
@@ -7,89 +7,133 @@
 
 ---
 
-## Table of Content
+This repo proposes the implementation for the paper **Simplex-enabled Safe Continual Learning Machine (SeCLM)** to
+provide lifetime safety for real robot during RL-based deployment and real-world learning.
+(Narration: [video1](https://www.youtube.com/shorts/vJKpNzPLPoE)
+and [video2](https://www.youtube.com/watch?v=ZNpJULgLnh0))
 
-* [Code Structure](#code-structure)
-* [Environment Setup](#environment-setup)
-* [PhyDRL Runtime](#phydrl-runtime)
-* [Running Convex MPC Controller](#running-convex-mpc-controller)
-    * [In Simulation](#in-simulation)
-    * [In Real A1 Robot](#in-real-a1-robot)
-* [Trouble Shootings](#trouble-shootings)
+```
+@misc{cai2024simplexenabledsafecontinuallearning,
+      title={Simplex-enabled Safe Continual Learning Machine}, 
+      author={Yihao Cai and Hongpeng Cao and Yanbing Mao and Lui Sha and Marco Caccamo},
+      year={2024},
+      eprint={2409.05898},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2409.05898}, 
+}
+```
+
+[//]: # (## Table of Content)
+
+[//]: # ()
+
+[//]: # (* [Code Structure]&#40;#code-structure&#41;)
+
+[//]: # (* [Environment Setup]&#40;#environment-setup&#41;)
+
+[//]: # (* [PhyDRL Runtime]&#40;#phydrl-runtime&#41;)
+
+[//]: # (* [Running Convex MPC Controller]&#40;#running-convex-mpc-controller&#41;)
+
+[//]: # (    * [In Simulation]&#40;#in-simulation&#41;)
+
+[//]: # (    * [In Real A1 Robot]&#40;#in-real-a1-robot&#41;)
+
+[//]: # (* [Trouble Shootings]&#40;#trouble-shootings&#41;)
 
 ---
 
 ## Code Structure
 
 This repo adapts from the codebase of [fast_and_efficient](https://github.com/yxyang/fast_and_efficient), with a
-modularized structure to validate the Simplex-enabled Safe Continual Learning Machine on quadruped robot. All the
-configuration settings are under the folder *config*, and the parameters are spawn in
+modularized structure to validate the Simplex-enabled Safe Continual Learning Machine on quadruped robot Unitree A1. All
+the configuration settings are under the folder `config`, and the parameters are spawn in
 hierarchy for each instance:
 
-```
-├── agents
-│      ├── cmaes                                      <- CMA-ES framework
-│      └── phydrl                                     <- PhyDRL framework
-│           ├── ...
-│           ├── envs                                  <- Training environments
-│           ├── learners                              <- PhyDRL learner
-│           ├── networks                              <- Talyor neural network & MLP
-│           ├── replay_buffers                        <- Replay memory
-│           ├── policies                              <- DDPG algorithm
-│           └── utils                                 <- Utilities (logger/add training noise)
-├── config                                            
-│      ├── phydrl
-│           ├── ddpg_params.py                        <- DDPG parameters
-│           ├── logger_params.py                      <- Logger parameters
-│           ├── taylor_params.py                      <- Taylor neural network parameters
-│           └── trainer_params.py                     <- PhyDRL trainer parameters
-│      ├── locomotion
-│           ├── controllers                           <- Low-level controller parameters
-│           ├── gait_scheduler                        <- Gait scheduler parameters
-│           └── robots                                <- Robot model and motor parameters
-│      ├── a1_real_params.py                          <- Config for real A1 robot
-│      ├── a1_sim_params.py                           <- Config for simulated A1 robot
-│      └── a1_trainer_params.py                       <- Config for trained A1 robot
-├── examples                                
-│      ├── a1_exercise_example.py                     <- Robot makes a sinuous move
-│      ├── a1_sim_to_real_example.py                  <- Robot sim-to-real (for testing)
-│      ├── a1_mpc_controller_example.py               <- Running MPC controller in simulator/real plant
-│      ├── main_drl.py                                <- Training A1 with PhyDRL
-│      └── main_mpc.py                                <- Testing trained PhyDRL policy
-├── locomotion
-│      ├── gait_scheduler                            
-│           ├── gait_scheduler.py                     <- An abstract class
-│           └── offset_gait_scheduler.py              <- Actual gait generator
-│      ├── ha_teacher       
-│           ├── ...
-│           └── ha_teacher.py                         <- HA Teacher   
-│      ├── mpc_controllers                      
-│           ├── mpc_osqp.cc                           <- OSQP library for stance state controller
-│           ├── qp_torque_optimizer.py                <- QP solver for stance acceleration controller
-│           ├── stance_leg_controller_mpc.py          <- Stance controller (objective func -> state)
-│           ├── stance_leg_controller_quadprog.py     <- Stance controller (objective func -> acceleration)
-│           └── swing_leg_controller.py               <- Swing controller (using Raibert formula)
-│      ├── robots
-│           ├── ...
-│           ├── a1.py                                 <- A1 robot (for simulation)
-│           ├── a1_robot.py                           <- A1 robot (for real plant)
-│           ├── a1_robot_phydrl.py                    <- A1 robot (for PhyDRL training)
-│           ├── motors.py                             <- A1 motor model
-│           └── quadruped.py                          <- An abstract base class for all robots
-│      ├── state_estimators
-│           ├── a1_robot_state_estimator.py           <- State estimator for real A1
-│           ├── com_velocity_estimator.py             <- CoM velocity estimator simulator/real plant 
-│           └── moving_window_fillter.py              <- A filter used in CoM velocity estimator
-│      ├── wbc_controller.py                          <- robot whole-body controller
-│      └── wbc_controller_cl.py                       <- robot whole-body controller (For continual learning)
-├── ...
-├── logs                                              <- Log files for training
-├── models                                            <- Trained model saved path
-├── third_party                                       <- Code by third parties (unitree, qpsolver, etc.)
-├── requirements.txt                                  <- Depencencies for code environment
-├── setup.py
-└── utils.py                         
-```
+[//]: # (```)
+
+[//]: # (├── config                                            )
+
+[//]: # (├── examples                                )
+
+[//]: # (│      ├── a1_exercise_example.py                     <- Robot makes a sinuous move)
+
+[//]: # (│      ├── a1_sim_to_real_example.py                  <- Robot sim-to-real &#40;for testing&#41;)
+
+[//]: # (│      ├── a1_mpc_controller_example.py               <- Running MPC controller in simulator/real plant)
+
+[//]: # (│      ├── main_drl.py                                <- Training A1 with PhyDRL)
+
+[//]: # (│      └── main_mpc.py                                <- Testing trained PhyDRL policy)
+
+[//]: # (├── locomotion)
+
+[//]: # (│      ├── gait_scheduler                            )
+
+[//]: # (│           ├── gait_scheduler.py                     <- An abstract class)
+
+[//]: # (│           └── offset_gait_scheduler.py              <- Actual gait generator)
+
+[//]: # (│      ├── ha_teacher       )
+
+[//]: # (│           ├── ...)
+
+[//]: # (│           └── ha_teacher.py                         <- HA Teacher   )
+
+[//]: # (│      ├── mpc_controllers                      )
+
+[//]: # (│           ├── mpc_osqp.cc                           <- OSQP library for stance state controller)
+
+[//]: # (│           ├── qp_torque_optimizer.py                <- QP solver for stance acceleration controller)
+
+[//]: # (│           ├── stance_leg_controller_mpc.py          <- Stance controller &#40;objective func -> state&#41;)
+
+[//]: # (│           ├── stance_leg_controller_quadprog.py     <- Stance controller &#40;objective func -> acceleration&#41;)
+
+[//]: # (│           └── swing_leg_controller.py               <- Swing controller &#40;using Raibert formula&#41;)
+
+[//]: # (│      ├── robots)
+
+[//]: # (│           ├── ...)
+
+[//]: # (│           ├── a1.py                                 <- A1 robot &#40;for simulation&#41;)
+
+[//]: # (│           ├── a1_robot.py                           <- A1 robot &#40;for real plant&#41;)
+
+[//]: # (│           ├── a1_robot_phydrl.py                    <- A1 robot &#40;for PhyDRL training&#41;)
+
+[//]: # (│           ├── motors.py                             <- A1 motor model)
+
+[//]: # (│           └── quadruped.py                          <- An abstract base class for all robots)
+
+[//]: # (│      ├── state_estimators)
+
+[//]: # (│           ├── a1_robot_state_estimator.py           <- State estimator for real A1)
+
+[//]: # (│           ├── com_velocity_estimator.py             <- CoM velocity estimator simulator/real plant )
+
+[//]: # (│           └── moving_window_fillter.py              <- A filter used in CoM velocity estimator)
+
+[//]: # (│      ├── wbc_controller.py                          <- robot whole-body controller)
+
+[//]: # (│      └── wbc_controller_cl.py                       <- robot whole-body controller &#40;For continual learning&#41;)
+
+[//]: # (├── ...)
+
+[//]: # (├── logs                                              <- Log files for training)
+
+[//]: # (├── models                                            <- Trained model saved path)
+
+[//]: # (├── third_party                                       <- Code by third parties &#40;unitree, qpsolver, etc.&#41;)
+
+[//]: # (├── requirements.txt                                  <- Depencencies for code environment)
+
+[//]: # (├── setup.py)
+
+[//]: # (└── utils.py                         )
+
+[//]: # (```)
 
 [//]: # (## Running Convex MPC Controller:)
 
@@ -211,61 +255,124 @@ Follow the steps if you want to run controllers on the real robot:
 
 [//]: # (   bring the robot back to joint-damping position.)
 
-## PhyDRL Runtime
+### Runtime
 
-PhyDRL adopts a model-based control approach with DDPG as its learning strategy. Through the utilization of the residual
-control framework and a CLF(Control Lyapunov Function)-like reward design, it demonstrates great performance and
-holds promise for addressing safety-critical control challenges.
+To test it in simulation, run `bash scripts/locomotion_test.sh`. To test it in hardware, make sure the parameters are
+well set and run `bash scripts/a1_test.sh`.
 
-### Training
+### Cautions
 
-To train the A1 using PhyDRL, refer to the following command:
+Users are encouraged to explore the logistics of the SeC-Learning Machine in simulation. However, please exercise
+caution when running the code on the real robot, as we encountered hardware issue previously during testing. We will
+continue to maintain and refine the repository to enhance its reliability for better hardware use.
 
-   ```bash
-   python -m examples.main_drl --gpu --mode=train --id={your phydrl name}
-   ```
+[//]: # ()
 
-### Testing
+[//]: # (PhyDRL adopts a model-based control approach with DDPG as its learning strategy. Through the utilization of the residual)
 
-To test the trained PhyDRL policy, refer to the following command:
+[//]: # (control framework and a CLF&#40;Control Lyapunov Function&#41;-like reward design, it demonstrates great performance and)
 
-   ```bash
-   python -m examples.main_drl --gpu --mode=test --id={your phydrl name}
-   ```
+[//]: # (holds promise for addressing safety-critical control challenges.)
 
-## Running Convex MPC Controller
+[//]: # ()
 
-We introduce two kinds of MPC controllers for the stance leg, one of which incorporates `state` as its objective
-function while another uses `acceleration` for optimization. To test each variant, you need to modify the value of
-*objective_function* in the config file.
+[//]: # (### Training)
 
-### In Simulation
+[//]: # ()
 
-The config parameters are loaded from `config/a1_sim_params.py`. You can also change the running speed in
-the *a1_mpc_controller_example.py* file after spawning an instance for the parameters. To
-run it in simulation:
+[//]: # (To train the A1 using PhyDRL, refer to the following command:)
 
-   ```bash
-   python -m examples.a1_mpc_controller_example --show_gui=True --max_time_secs=10 --use_real_robot=False --world=plane
-   ```
+[//]: # ()
 
-### In Real A1 Robot
+[//]: # (   ```bash)
 
-The config parameters are loaded from `config/a1_real_params.py`. You can also change the running speed in
-the *a1_mpc_controller_example.py* file after spawning an instance for the parameters. To
-run it in real A1 robot:
+[//]: # (   python -m examples.main_drl --gpu --mode=train --id={your phydrl name})
 
-1. Start the robot. After it stands up, get it enter joint-damping mode by pressing `L2+B` on the remote controller.
-   Then the robot should lay down on the ground.
+[//]: # (   ```)
 
-2. Establish a connection to the A1 hotspot (UnitreeRoboticsA1-xxxx) on your local machine and verify its communication
-   with the low-level controller onboard.
+[//]: # ()
 
-3. Run the following command:
+[//]: # (### Testing)
 
-   ```bash
-   python -m examples.a1_mpc_controller_example --show_gui=False --max_time_secs=15 --use_real_robot=True 
-   ```
+[//]: # ()
+
+[//]: # (To test the trained PhyDRL policy, refer to the following command:)
+
+[//]: # ()
+
+[//]: # (   ```bash)
+
+[//]: # (   python -m examples.main_drl --gpu --mode=test --id={your phydrl name})
+
+[//]: # (   ```)
+
+[//]: # ()
+
+[//]: # (## Running Convex MPC Controller)
+
+[//]: # ()
+
+[//]: # (We introduce two kinds of MPC controllers for the stance leg, one of which incorporates `state` as its objective)
+
+[//]: # (function while another uses `acceleration` for optimization. To test each variant, you need to modify the value of)
+
+[//]: # (*objective_function* in the config file.)
+
+[//]: # ()
+
+[//]: # (### In Simulation)
+
+[//]: # ()
+
+[//]: # (The config parameters are loaded from `config/a1_sim_params.py`. You can also change the running speed in)
+
+[//]: # (the *a1_mpc_controller_example.py* file after spawning an instance for the parameters. To)
+
+[//]: # (run it in simulation:)
+
+[//]: # ()
+
+[//]: # (   ```bash)
+
+[//]: # (   python -m examples.a1_mpc_controller_example --show_gui=True --max_time_secs=10 --use_real_robot=False --world=plane)
+
+[//]: # (   ```)
+
+[//]: # ()
+
+[//]: # (### In Real A1 Robot)
+
+[//]: # ()
+
+[//]: # (The config parameters are loaded from `config/a1_real_params.py`. You can also change the running speed in)
+
+[//]: # (the *a1_mpc_controller_example.py* file after spawning an instance for the parameters. To)
+
+[//]: # (run it in real A1 robot:)
+
+[//]: # ()
+
+[//]: # (1. Start the robot. After it stands up, get it enter joint-damping mode by pressing `L2+B` on the remote controller.)
+
+[//]: # (   Then the robot should lay down on the ground.)
+
+[//]: # ()
+
+[//]: # (2. Establish a connection to the A1 hotspot &#40;UnitreeRoboticsA1-xxxx&#41; on your local machine and verify its communication)
+
+[//]: # (   with the low-level controller onboard.)
+
+[//]: # ()
+
+[//]: # (3. Run the following command:)
+
+[//]: # ()
+
+[//]: # (   ```bash)
+
+[//]: # (   python -m examples.a1_mpc_controller_example --show_gui=False --max_time_secs=15 --use_real_robot=True )
+
+[//]: # (   ```)
 
 [//]: # (### Convex MPC Controller)
 
