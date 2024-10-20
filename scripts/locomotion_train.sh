@@ -1,22 +1,26 @@
 #!/bin/bash
 
-ID='SeCLM'
+ID='RLM'
 RUNTIME=10
 DESIRED_VX=0.3
-DEPLOAY_PHYDRL=true
-TRAIN_WITH_PHYDRL=false
-CHECKPOINT="model/trained_model"
+DEPLOAY_PHYDRL=false
+TRAIN_WITH_PHYDRL=true
+CHECKPOINT="results/models/friction_0.7_delay_yaw_penalty"
+#CHECKPOINT="results/models/friction_0.7_delay_vel_0.6_sub_optimal1_best"
+#CHECKPOINT="continual_learn/online_cl_model"
 #STANCE_CONTROL="stance_control_qpOASES"
 STANCE_CONTROL="stance_control_quadprog"
 SIM_ENVS="sim_v2"
-ROBOT="a1_sim"
+#ROBOT="a1_sim"
+ROBOT="a1_real"
 FRICTION=0.7
+#FIXED_TIME_STEP=0.002
 FIXED_TIME_STEP=0.002
 ACTION_REPEAT=1
 RESET_TIME=3
 
 
-python -m examples.a1_locomotion_example  \
+python3 -m examples.a1_locomotion_example  \
   general.id=${ID} \
   general.runtime=${RUNTIME} \
   general.checkpoint=${CHECKPOINT} \

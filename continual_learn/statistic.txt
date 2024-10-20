@@ -1,0 +1,6 @@
+Training at 10000, average_reward: 0.0009885383388620584, average_critic: 155090.7258875
+Training at 10000, average_reward: 0.0009340305526100801, average_critic: 5841.4756296875
+Training at 10000, average_reward: 0.0009614943799216883, average_critic: 2068.67380390625
+Training at 10000, average_reward: 0.0009823033657374762, average_critic: 2608.8256328125
+Training at 10000, average_reward: 0.0009998079572570112, average_critic: 702957.3390646485
+Training at 10000, average_reward: 0.0010005299965180998, average_critic: 2150.864795703125

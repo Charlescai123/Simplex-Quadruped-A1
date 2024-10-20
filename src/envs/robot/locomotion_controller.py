@@ -28,6 +28,7 @@ from src.envs.robot.mpc_controller import swing_leg_controller
 from src.envs.robot.mpc_controller import stance_leg_controller_mpc
 from src.envs.robot.mpc_controller import stance_leg_controller_quadprog
 import tensorflow as tf
+from src.hp_student.agents.replay_mem import ReplayMemory
 
 
 class ControllerMode(enum.Enum):
@@ -103,6 +104,13 @@ class LocomotionController(object):
         self.ha_teacher = HATeacher(robot=self._robot, teacher_cfg=teacher_config)
         self.coordinator = Coordinator()
 
+        # Uncomment for online CL
+        # self._initial_online_cl()
+        #
+        # self._replay_buffer = ReplayMemory(size=1e6)
+        # self._prefill_size = 512
+        # self._minibatch_size = 512
+
         # Logs
         self._logs = []
         self._logdir = logdir
@@ -164,6 +172,102 @@ class LocomotionController(object):
         self.ha_action = np.array([0., 0., 0., 0., 0., 0.])
         self.reset_controllers()
         self.beta_distribution_noise = np.random.beta(a=0.5, b=0.5, size=6) * 0.5
+
+    def _initial_online_cl(self):
+        ################################### For Online Continual Learning ###################################
+        # self._replay_buffer = ReplayMemory(size=1e6)
+        self._max_episode_steps = 10000
+        self._total_steps = 50000
+        self._prefill_size = 512
+        self._minibatch_size = 512
+
+        # self._prefill_size = 300
+        # self._minibatch_size = 300
+
+        def count_dirs_in_directory(directory):
+            files_and_dirs = os.listdir(directory)
+            dirs = [d for d in files_and_dirs if os.path.isdir(os.path.join(directory, d))]
+            return len(dirs)
+
+        self._continual_dir = 'continual_learn'
+        self._replay_buffer_path = self._continual_dir + '/buffer.pickle'
+        self._statistic_file_path = self._continual_dir + '/statistic.txt'
+        # self._replay_buffer_path = None
+        self._online_cl_model_dir = self._continual_dir + '/online_cl_model/'
+
+        self._model_ep_cnt = count_dirs_in_directory(self._online_cl_model_dir)
+
+        if self._model_ep_cnt == 0:
+            # self._pretrained_weights_path = self._continual_dir + f'/pre-trained/friction_0.7_delay_yaw_penalty'
+            self._pretrained_weights_path = self._continual_dir + f'/pre-trained/friction_0.7_delay_vel_0.6_sub_optimal1_best'
+        else:
+            self._pretrained_weights_path = self._online_cl_model_dir + f'ep{self._model_ep_cnt}'
+        self._weight_save_path = self._online_cl_model_dir + f'ep{self._model_ep_cnt + 1}'
+
+        # Load weights
+        if os.path.isdir(self._pretrained_weights_path):
+            self.ddpg_agent.load_weights(self._pretrained_weights_path)
+            print(f"Loading pretrained model {self._pretrained_weights_path} from the last training")
+
+        # Load replay buffer
+        try:
+            with open(self._replay_buffer_path, 'rb') as f:
+                self._replay_buffer = pickle.load(f)
+                print(f"Loading replay buffer {self._replay_buffer_path} from the last training")
+                # self.ddpg_agent.change_learning_rate(lr_rate_actor=0.0001, lr_rate_critic=0.0001)
+                # self.ddpg_agent.get_learning_rate()
+                self.ddpg_agent.change_learning_rate(lr_rate_actor=0., lr_rate_critic=0.)
+                self.ddpg_agent.get_learning_rate()
+                t0 = time.time()
+                for _ in range(1):
+                    minibatch = self._replay_buffer.sample(self._minibatch_size)
+                    _ = self.ddpg_agent.optimize(minibatch)
+                t1 = time.time()
+                print(f"initial optimize time: {t1 - t0}")
+        except:
+            self._replay_buffer = ReplayMemory(size=1e6)
+            for _ in range(self._prefill_size):
+                virtual_experience = (np.zeros(12), np.zeros(6), np.zeros(1), np.zeros(12), False)
+                self._replay_buffer.add(virtual_experience)
+            print(f"replay buffer size: {self._replay_buffer.get_size()}")
+            print(f"ddpg agent: {self.ddpg_agent}")
+            minibatch = self._replay_buffer.sample(self._minibatch_size)
+            # self._ddpg_agent.change_learning_rate(lr_rate_actor=0., lr_rate_critic=0.)
+            # _ = self.ddpg_agent.optimize(minibatch)
+            self._replay_buffer = ReplayMemory(size=1e6)
+
+        # try:
+        #     with open(self._replay_buffer_path, 'rb') as f:
+        #         self._replay_buffer = pickle.load(f)
+        #         print(f"Loading replay buffer {self._replay_buffer_path} from the last training")
+        #         # self.ddpg_agent.change_learning_rate(lr_rate_actor=0.0001, lr_rate_critic=0.0001)
+        #         self.ddpg_agent.change_learning_rate(lr_rate_actor=0, lr_rate_critic=0)
+        #         for _ in range(1):
+        #             minibatch = self._replay_buffer.sample(self._minibatch_size)
+        #             _ = self.ddpg_agent.optimize(minibatch)
+        # except e:
+        #     print(f"exception is: {e}")
+        # self._replay_buffer = ReplayMemory(size=2e5)
+        # for _ in range(512):
+        #     virtual_experience = (np.zeros(12), np.zeros(6), np.zeros(1), np.zeros(12), False)
+        #     self._replay_buffer.add(virtual_experience)
+        # minibatch = self._replay_buffer.sample(self._minibatch_size)
+        # self.ddpg_agent.change_learning_rate(lr_rate_actor=0., lr_rate_critic=0.)
+        # _ = self.ddpg_agent.optimize(minibatch)
+        # self._replay_buffer = ReplayMemory(size=2e5)
+
+        # # optimization warm up
+        self.ddpg_agent.change_learning_rate(lr_rate_actor=self.ddpg_agent.params.learning_rate_actor,
+                                             lr_rate_critic=self.ddpg_agent.params.learning_rate_critic)
+        self.ddpg_agent.get_learning_rate()
+        # print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!r")
+        # time.sleep(123)
+        # self._ddpg_agent.change_learning_rate(lr_rate_actor=0, lr_rate_critic=0)
+
+        self.ddpg_agent.agent_warmup()
+        self.reward = 0
+        # time.sleep(15)
+        ####################################################################################################
 
     def _setup_controllers(self):
         print("Setting up the whole body controller...")
@@ -599,6 +703,10 @@ class LocomotionController(object):
 
         state_vector = np.hstack((com_position, com_roll_pitch_yaw, com_velocity, com_roll_pitch_yaw_rate))
         return state_vector
+
+    @property
+    def ddpg_agent(self):
+        return self._ddpg_agent
 
     @property
     def robot_state(self):

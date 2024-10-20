@@ -99,8 +99,12 @@ class OffsetGaitScheduler(gait_scheduler.GaitScheduler):
 
     @property
     def desired_leg_states(self):
+        # !!!!!!!!!!!!!!!!!!!!!!!!!! warning !!!!!!!!!!!!!!!!!!!!!!!!
+        # np.fmod cannot really wrap to [0, 2*pi] for the negatives
+        # wrapped_phase = np.fmod(self.current_phase + 2 * np.pi, 2 * np.pi)
+
         # Wrap phase to [0, 2 * pi]
-        wrapped_phase = np.fmod(self.current_phase + 2 * np.pi, 2 * np.pi)
+        wrapped_phase = np.mod(self.current_phase + 2 * np.pi, 2 * np.pi)
         # print(f"wrapped_phase: {wrapped_phase}")
 
         # desired_leg_states = np.array([
@@ -110,11 +114,12 @@ class OffsetGaitScheduler(gait_scheduler.GaitScheduler):
         # print(f"desired_leg_states: {desired_leg_states}")
         # import time
         # time.sleep(1)
-
-        return np.array([
+        desired_states = np.array([
             LegState.SWING if phase < self.swing_cutoff else LegState.STANCE
             for phase in wrapped_phase
         ])
+        assert np.count_nonzero(desired_states == LegState.SWING) <= 2, "The robot leg state is abnormal"
+        return desired_states
 
     @property
     def normalized_phase(self):

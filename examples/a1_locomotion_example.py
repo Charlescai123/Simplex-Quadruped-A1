@@ -160,6 +160,17 @@ def main(cfg: DictConfig):
         ddpg_agent.actor.save("tf_models/actor")
         # print(f"Testing the trained model: {cfg.phydrl.id}")
         ddpg_agent.agent_warmup()
+    elif cfg.general.train_with_phydrl:
+        ddpg_agent = ddpg.DDPGAgent(
+            agent_cfg=cfg.hp_student.agents,
+            taylor_cfg=cfg.hp_student.taylor,
+            shape_action=6,
+            shape_observations=12,
+            mode='train'
+        )
+        ddpg_agent.actor.save("tf_models/actor")
+        # print(f"Testing the trained model: {cfg.phydrl.id}")
+        ddpg_agent.agent_warmup()
     else:
         ddpg_agent = None
 

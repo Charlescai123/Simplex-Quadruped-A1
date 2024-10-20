@@ -7,6 +7,7 @@ general:
   name: 'simulation'
   runtime: 10            # Time for running the robot (seconds)
   deploy_phydrl: false   # Whether to use Phy-DRL for inference
+  train_with_phydrl: true
   log_dir: 'saved/logs/robot'
 
   # Training
