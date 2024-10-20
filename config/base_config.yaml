@@ -26,7 +26,6 @@ general:
 
 
 defaults:
-  - coordinator: coordinator.yaml
   - envs: a1_envs.yaml
   - ha_teacher: ha_teacher.yaml
   - hp_student: phydrl.yaml

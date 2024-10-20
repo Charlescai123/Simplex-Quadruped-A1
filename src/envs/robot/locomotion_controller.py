@@ -97,10 +97,11 @@ class LocomotionController(object):
         from src.coordinator.coordinator import Coordinator
         from omegaconf import DictConfig
 
-        teacher_config = DictConfig({"chi": 0.25, "teacher_enable": True, "epsilon": 0.6, "cvxpy_solver": "solver"})
-        coordinator_config = DictConfig({"teacher_learn": True, "max_dwell_steps": 150})
+        teacher_config = DictConfig(
+            {"chi": 0.3, "teacher_learn": True, "teacher_enable": True, "epsilon": 0.6, "tau": 10,
+             "cvxpy_solver": "solver"})
         self.ha_teacher = HATeacher(robot=self._robot, teacher_cfg=teacher_config)
-        self.coordinator = Coordinator(config=coordinator_config)
+        self.coordinator = Coordinator()
 
         # Logs
         self._logs = []
@@ -327,12 +328,14 @@ class LocomotionController(object):
             self.hp_action = phy_ddq + drl_action
         else:
             self.hp_action = phy_ddq
-        self.ha_action = self.ha_teacher.get_action()
+        self.ha_action, dwell_flag = self.ha_teacher.get_action()
         # print(f"hp_action: {hp_action}")
         # print(f"ha_action: {ha_action}")
-        terminal_stance_ddq, action_mode = self.coordinator.determine_action(hp_action=self.hp_action,
-                                                                             ha_action=self.ha_action,
-                                                                             epsilon=self.ha_teacher.epsilon)
+        terminal_stance_ddq, action_mode = self.coordinator.get_terminal_action(hp_action=self.hp_action,
+                                                                                ha_action=self.ha_action,
+                                                                                plant_state=self.tracking_error,
+                                                                                dwell_flag=dwell_flag,
+                                                                                epsilon=self.ha_teacher.epsilon)
         stance_action, _ = self.stance_leg_controller.map_ddq_to_action(ddq=terminal_stance_ddq)
 
         motor_action = self.get_motor_action(swing_action=swing_action, stance_action=stance_action)
@@ -449,7 +452,6 @@ class LocomotionController(object):
             s = self.tracking_error
             # print(f"self._robot_state: {self._robot_state}")
             self.ha_teacher.update(error_state=s)  # Teacher update
-            self.coordinator.update(state=s)  # Coordinator update
 
             # logging.debug(f"vx: {self._stance_controller.desired_speed}")
             # logging.debug(f"mode is: {self.mode}")

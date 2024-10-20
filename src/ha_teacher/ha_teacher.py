@@ -23,7 +23,7 @@ from numpy.linalg import pinv
 
 from src.physical_design import MATRIX_P
 from scipy.linalg import solve_continuous_are, inv
-from src.utils.utils import safety_value
+from src.utils.utils import energy_value
 from cvxopt import matrix, solvers
 
 
@@ -37,16 +37,22 @@ class HATeacher:
         # Teacher Configure
         self.chi = teacher_cfg.chi
         self.epsilon = teacher_cfg.epsilon
-        self.teacher_enable = teacher_cfg.teacher_enable
         self.cvxpy_solver = teacher_cfg.cvxpy_solver
         self.p_mat = MATRIX_P
+        self.max_dwell_steps = teacher_cfg.tau
+        self.teacher_enable = teacher_cfg.teacher_enable
+        self.teacher_learn = teacher_cfg.teacher_learn
 
         # HAC Runtime
         # self._ref_state = None
         self._plant_state = None
+        self._teacher_activate = False
         # self._error_state = None
         self._patch_center = np.zeros(12)
         self._center_update = True  # Patch center update flag
+        self._dwell_step = 0  # Dwell step
+
+        # Patch kp and kd
         # self._patch_kp = np.diag((0., 0., 100., 100., 100., 0.))
         # self._patch_kd = np.diag((40., 30., 10., 10., 10., 30.))
 
@@ -166,18 +172,22 @@ class HATeacher:
         self._plant_state = error_state
         # self._ref_state = ref_state
         # self._error_state = error_state
-        safety_val = safety_value(state=error_state[2:], p_mat=MATRIX_P)
+        energy = energy_value(state=error_state[2:], p_mat=MATRIX_P)
 
-        # Restore patch flag
-        if safety_val < self.epsilon:
-            self._center_update = True
+        # HA-Teacher activated
+        if self._teacher_activate:
+            if self._dwell_step >= self.max_dwell_steps:
+                print(f"Reaching maximum dwell steps, deactivate HA-Teacher")
+                self._teacher_activate = False
 
-        # States unsafe (outside safety envelope)
+        # HA-Teacher deactivated
         else:
-            # Update patch center with current plant state
-            if self._center_update is True:
-                self._patch_center = self._plant_state * self.chi
-                self._center_update = False
+            # Outside envelope boundary
+            if energy >= self.epsilon:
+                self._dwell_step = 0
+                self._teacher_activate = True  # Activate teacher
+                self._patch_center = self._plant_state * self.chi  # Update patch center
+                print(f"Activate HA-Teacher and updated patch center is: {self._patch_center}")
 
     def feedback_law(self, roll, pitch, yaw):
         # roll = matlab.double(roll)s
@@ -194,8 +204,9 @@ class HATeacher:
         self.action_counter += 1
 
         # If teacher deactivated
-        if self.teacher_enable is False:
-            return None
+        if self.teacher_enable is False or self._teacher_activate is False:
+            print(f"teacher is deactivated")
+            return None, False
 
         # self.triggered_roll.value = self._plant_state[3]
         # self.triggered_pitch.value = self._plant_state[4]
@@ -240,26 +251,29 @@ class HATeacher:
         # print(f"teacher_action part 2 time: {s2 - s1}")
         # print(f"teacher_action part 3 time: {s3 - s2}")
         # print(f"teacher_action total time: {s3 - s0}")
+        assert self._dwell_step <= self.max_dwell_steps
+        self._dwell_step += 1
+        print(f"HA-Teacher runs for dwell time: {self._dwell_step}/{self.max_dwell_steps}")
 
         # self._phy_ddq = (kp @ (err_q - chi * state_trig[:6])
         #                  + kd @ (err_dq - chi * state_trig[6:])).squeeze()
 
-        return teacher_action
+        return teacher_action, True
 
     @staticmethod
     def system_patch(roll, pitch, yaw):
         """
-        Computes the patch gain with roll pitch yaw.
+         Computes the patch gain with roll pitch yaw.
 
-        Args:
-          roll: Roll angle (rad).
-          pitch: Pitch angle (rad).
-          yaw: Yaw angle (rad).
+         Args:
+           roll: Roll angle (rad).
+           pitch: Pitch angle (rad).
+           yaw: Yaw angle (rad).
 
-        Returns:
-          F_kp: Proportional feedback gain matrix.
-          F_kd: Derivative feedback gain matrix.
-        """
+         Returns:
+           F_kp: Proportional feedback gain matrix.
+           F_kd: Derivative feedback gain matrix.
+         """
 
         # Rotation matrices
         Rx = np.array([[1, 0, 0],
@@ -274,8 +288,23 @@ class HATeacher:
         Rzyx = Rz.dot(Ry.dot(Rx))
         # print(f"Rzyx: {Rzyx}")
 
+        Rzyx = np.array([[np.cos(yaw) / np.cos(pitch), np.sin(yaw) / np.cos(pitch), 0],
+                         [-np.sin(yaw), np.cos(yaw), 0],
+                         [np.cos(yaw) * np.tan(pitch), np.sin(yaw) * np.tan(pitch), 1]])
+
+        bP = np.array([[140.6434, 0, 0, 0, 0, 0, 5.3276, 0, 0, 0],
+                       [0, 134.7596, 0, 0, 0, 0, 0, 6.6219, 0, 0],
+                       [0, 0, 134.7596, 0, 0, 0, 0, 0, 6.622, 0],
+                       [0, 0, 0, 49.641, 0, 0, 0, 0, 0, 6.8662],
+                       [0, 0, 0, 0, 11.1111, 0, 0, 0, 0, 0],
+                       [0, 0, 0, 0, 0, 3.3058, 0, 0, 0, 0],
+                       [5.3276, 0, 0, 0, 0, 0, 3.6008, 0, 0, 0],
+                       [0, 6.6219, 0, 0, 0, 0, 0, 3.6394, 0, 0],
+                       [0, 0, 6.622, 0, 0, 0, 0, 0, 3.6394, 0],
+                       [0, 0, 0, 6.8662, 0, 0, 0, 0, 0, 4.3232]])
+
         # Sampling period
-        T = 1 / 35  # 36 35 34
+        T = 1 / 30  # work in 25 to 30
 
         # System matrices (continuous-time)
         aA = np.zeros((10, 10))
@@ -288,36 +317,48 @@ class HATeacher:
         B = aB * T
         A = np.eye(10) + T * aA
 
-        # bP = self.p_mat
-        bP = np.array([[140.1190891, 0, 0, -0, -0, 0, 3.7742345, -0, 0, -0],
-                       [0, 2.3e-06, 0, -0, -0, 0, 0, 1.4e-06, 0, 0],
-                       [0, 0, 2.3e-06, 0, -0, 0, 0, 0, 1.4e-06, 0],
-                       [-0, -0, 0, 467.9872184, 0, -0, -0, -0, 0, 152.9259161],
-                       [-0, -0, -0, 0, 2.9088242, 0, -0, -0, -0, 0],
-                       [0, 0, 0, -0, 0, 1.9e-06, -0, 0, 0, -0],
-                       [3.7742345, 0, 0, -0, -0, -0, 0.3773971, 0, 0, -0],
-                       [-0, 1.4e-06, 0, -0, -0, 0, 0, 1e-06, 0, -0],
-                       [0, 0, 1.4e-06, 0, -0, 0, 0, 0, 1e-06, 0],
-                       [-0, 0, 0, 152.9259161, 0, -0, -0, -0, 0, 155.2407021]]) * 1
+        alpha = 0.8
+        kappa = 0.01
+        chi = 0.2
+        # gamma = 1
+        # hd = 0.000
+        gamma1 = 1
+        gamma2 = 1  # 1
 
-        eta = 2  # 2
-        # beta = 0.24
-        beta = 0.24
-        # beta = 0.3        # also works in simulation
-        kappa = 0.001
+        b1 = 1 / 0.15  # height  0.15
+        b2 = 1 / 0.35  # velocity 0.3
+        # b3 = 1 / 0.1   # yaw 0.1
+        # b4 = 1 / 0.5   # yaw rate 1
+
+        D = np.array([[b1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, b2, 0, 0, 0, 0, 0]])
+        # [0, 0, 0, b3, 0, 0, 0, 0, 0, 0],
+        # [0, 0, 0, 0, 0, 0, 0, 0, 0, b4]])
+        c1 = 1 / 45
+        c2 = 1 / 70
+        C = np.array([[c1, 0, 0, 0, 0, 0],
+                      [0, c1, 0, 0, 0, 0],
+                      [0, 0, c1, 0, 0, 0],
+                      [0, 0, 0, c2, 0, 0],
+                      [0, 0, 0, 0, c2, 0],
+                      [0, 0, 0, 0, 0, c2]])
 
         Q = cp.Variable((10, 10), PSD=True)
+        T = cp.Variable((6, 6), PSD=True)
         R = cp.Variable((6, 10))
+        mu = cp.Variable((1, 1))
 
-        w = 7
-
-        constraints = [
-            cp.bmat([
-                [(beta - (1 + (1 / w)) * kappa * eta) * Q, Q @ A.T + R.T @ B.T],
-                [A @ Q + B @ R, Q / (1 + w)]
-            ]) >> 0,
-            np.eye(10) - Q @ bP >> 0
-        ]
+        constraints = [cp.bmat([[(alpha - kappa * (1 + (1 / gamma2))) * Q, Q @ A.T + R.T @ B.T],
+                                [A @ Q + B @ R, Q / (1 + gamma2)]]) >> 0,
+                       cp.bmat([[Q, R.T],
+                                [R, T]]) >> 0,
+                       (1 - chi * gamma1) * mu - (1 - (2 * chi) + (chi / gamma1)) >> 0,
+                       Q - mu * np.linalg.inv(bP) >> 0,
+                       np.identity(2) - D @ Q @ D.transpose() >> 0,
+                       np.identity(6) - C @ T @ C.transpose() >> 0,
+                       # T - hd * np.identity(6) >> 0,
+                       mu - 1.0 >> 0,
+                       ]
 
         # Define problem and objective
         problem = cp.Problem(cp.Minimize(0), constraints)
@@ -334,22 +375,33 @@ class HATeacher:
 
         optimal_Q = Q.value
         optimal_R = R.value
+        optimal_mu = mu.value
+
+        # print(mu.value)
+        # print(Q.value)
+
         P = np.linalg.inv(optimal_Q)
 
         # Compute aF
         aF = np.round(aB @ optimal_R @ P, 0)
-
         Fb2 = aF[6:10, 0:4]
 
-        # Compute F_kp and F_kd
+        # Compute F_kp
         F_kp = -np.block([
             [np.zeros((2, 6))],
-            [np.zeros((4, 2)), Fb2]]) * 0.1
+            [np.zeros((4, 2)), Fb2]])
+        # Compute F_kd
         F_kd = -aF[4:10, 4:10]
+
+        print(f"F_kp is: {F_kp}")
+        print(f"F_kd is: {F_kd}")
 
         # Check if the problem is solved successfully
         if np.all(np.linalg.eigvals(P) > 0):
             print("LMIs feasible")
+            print(F_kp)
+            print(F_kd)
+
         else:
             print("LMIs infeasible")
 
@@ -405,7 +457,9 @@ if __name__ == '__main__':
     # ha_teacher = HATeacher()
     # K = ha_teacher.feedback_law(0, 0, 0)
     # print(K)
-    F_kp, F_kd = HATeacher.system_patch(0.0, 0.0, 0.0)
-
+    s = time.time()
+    F_kp, F_kd = HATeacher.system_patch(0., 0., 0.)
+    e = time.time()
     print(f"F_kp is: {F_kp}")
     print(f"F_kd is: {F_kd}")
+    print(f"time: {e - s}")

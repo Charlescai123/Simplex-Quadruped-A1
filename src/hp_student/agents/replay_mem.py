@@ -21,7 +21,7 @@ class ReplayMemory(object):
         self.memory = None
 
     def initialize(self, experience):
-
+        # print(f"exp: {experience}")
         self.memory = [np.zeros(shape=(self.size, shape(exp)), dtype=type_of(exp)) for exp in experience]
         self.memory.append(np.zeros(shape=self.size, dtype=float))
 
@@ -32,7 +32,8 @@ class ReplayMemory(object):
 
         if len(experience) + 1 != len(self.memory):
             raise Exception('Experiment not the same size as memory', len(experience), '!=', len(self.memory))
-
+        # print(f"self.memory is: {self.memory}")
+        # print(f"experience is: {experience}")
         for e, mem in zip(experience, self.memory):
             mem[self.k] = e
 

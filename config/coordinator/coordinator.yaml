@@ -1,6 +1,0 @@
-# @package _global_
-
-coordinator:
-  teacher_learn: true
-  max_dwell_steps: 10
-

@@ -9,7 +9,7 @@ class ActionMode(enum.Enum):
     STUDENT = 1
     TEACHER = 2
 
-def safety_value(state: Any, p_mat: np.ndarray) -> int:
+def energy_value(state: Any, p_mat: np.ndarray) -> int:
     """
     Get safety value represented by s^T @ P @ s
     """

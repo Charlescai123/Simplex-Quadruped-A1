@@ -2,7 +2,11 @@
 
 ha_teacher:
   chi: 0.25
+  tau: 100
 #  chi: 0.
   epsilon: 0.4
+
+  teacher_learn: true
   teacher_enable: true
+
   cvxpy_solver: 'cvxopt'

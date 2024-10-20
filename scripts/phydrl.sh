@@ -1,7 +1,7 @@
 #!/bin/bash
 
-ID="phydrl-test-2_3"
-MODE="test"
+ID="phydrl-test-2_2"
+MODE="train"
 DESIRED_VX=0.3
 DEPLOAY_PHYDRL=false
 TEACHER_ENABLE=false
@@ -10,7 +10,7 @@ SIM_ENVS="sim_v2"
 STANCE_CONTROL="stance_control_quadprog"
 RANDOM_INIT=true
 FIXED_TIME_STEP=0.002
-ROBOT="a1_real"
+ROBOT="a1_sim"
 FRICTION=0.7
 ACTION_REPEAT=1
 RESET_TIME=3

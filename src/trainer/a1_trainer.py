@@ -55,6 +55,7 @@ class A1Trainer:
         self._buffer_experience_prefill_size = self.agent_params.replay_buffer.experience_prefill_size
         self._buffer_batch_size = self.agent_params.replay_buffer.batch_size
 
+
     def interaction_step(self, mode=None):
 
         s0 = time.time()
